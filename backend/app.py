@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fast_alpr import ALPR
@@ -66,6 +66,7 @@ JPEG_OPTIMIZE = True
 LAST_REQUEST_AT = {}
 MIN_INTERVAL_SEC = 0.15
 CARS_FILE = os.path.join(os.path.dirname(__file__), "cars.yaml")
+CARS_FILE_LOCK = asyncio.Lock()
 
 
 
@@ -95,6 +96,79 @@ def load_cars_by_plate() -> dict[str, dict]:
         if plate:
             cars_by_plate[plate] = car
     return cars_by_plate
+
+def load_cars_document() -> dict:
+    if not os.path.exists(CARS_FILE):
+        return {"cars": []}
+    try:
+        with open(CARS_FILE, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception:
+        return {"cars": []}
+
+    if not isinstance(data, dict):
+        return {"cars": []}
+    if not isinstance(data.get("cars"), list):
+        data["cars"] = []
+    return data
+
+def save_cars_document(data: dict) -> None:
+    with open(CARS_FILE, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
+
+@app.patch("/cars/{plate}")
+async def update_car(plate: str, payload: dict = Body(...)):
+    if not isinstance(payload, dict) or not payload:
+        raise HTTPException(status_code=400, detail="Invalid update payload")
+
+    field_aliases = {"Multa": "multa"}
+    allowed_fields = {
+        "multa",
+        "last_seen",
+        "last_revision",
+        "insurance_expiration",
+        "park_expiration",
+        "model",
+        "color",
+        "year",
+    }
+
+    updates = {}
+    for key, value in payload.items():
+        normalized_key = field_aliases.get(key, key)
+        if normalized_key in allowed_fields:
+            updates[normalized_key] = value
+
+    if not updates:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid fields to update"
+        )
+
+    normalized_plate = normalize_plate(plate)
+    async with CARS_FILE_LOCK:
+        data = load_cars_document()
+        cars = data.get("cars", [])
+
+        target_car = None
+        for car in cars:
+            if not isinstance(car, dict):
+                continue
+            if normalize_plate(str(car.get("plate", ""))) == normalized_plate:
+                target_car = car
+                break
+
+        if target_car is None:
+            raise HTTPException(status_code=404, detail="Car not found")
+
+        target_car.update(updates)
+        save_cars_document(data)
+
+    return {
+        "updated": True,
+        "plate": target_car.get("plate"),
+        "car_data": target_car,
+    }
 
 @app.post("/detect")
 async def detect_plate(request: Request, file: UploadFile = File(...)):

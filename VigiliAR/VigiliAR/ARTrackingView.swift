@@ -136,6 +136,8 @@ private struct ARViewContainer: UIViewRepresentable {
         weak var vehicleStore: VehicleStore?
         weak var sceneStore: ARTrackingSceneStore?
         var lastHandledDeleteRequest: Int = 0
+        private let apiBaseURL = "http://192.168.1.60:8000"
+        private var multaButtonPlates: [String: String] = [:]
 
         func configureSession() {
             guard let arView else { return }
@@ -149,6 +151,14 @@ private struct ARViewContainer: UIViewRepresentable {
         @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
             guard let arView else { return }
             let location = recognizer.location(in: arView)
+
+            if let tappedEntity = arView.entity(at: location),
+               let multaButton = multaButtonAncestor(from: tappedEntity),
+               let plateForFine = multaButtonPlates[multaButton.name] {
+                disableMultaButton(multaButton)
+                markMulta(for: plateForFine)
+                return
+            }
 
             guard let result = arView.raycast(from: location, allowing: .estimatedPlane, alignment: .any).first else {
                 return
@@ -167,9 +177,14 @@ private struct ARViewContainer: UIViewRepresentable {
                             return
                         }
 
+                        self.updateLastSeen(for: parsed.plate)
                         let display = self.makePanelDisplay(from: data, scan: parsed)
                         let anchor = AnchorEntity(world: position)
-                        let panel = self.makeInfoPanel(lines: display.lines, isParkExpired: display.isParkExpired)
+                        let panel = self.makeInfoPanel(
+                            lines: display.lines,
+                            isParkExpired: display.isParkExpired,
+                            plate: parsed.plate
+                        )
                         panel.position = [0, 0.06, 0]
                         anchor.addChild(panel)
                         arView.scene.addAnchor(anchor)
@@ -191,7 +206,7 @@ private struct ARViewContainer: UIViewRepresentable {
             }
         }
 
-        private func makeInfoPanel(lines: [PanelLine], isParkExpired: Bool) -> Entity {
+        private func makeInfoPanel(lines: [PanelLine], isParkExpired: Bool, plate: String) -> Entity {
             let root = Entity()
             let metrics = panelMetrics(for: lines)
 
@@ -231,7 +246,54 @@ private struct ARViewContainer: UIViewRepresentable {
             root.addChild(textContainer)
 
             setPanelLines(root, lines: lines, metrics: metrics)
+            if let multaButton = makeMultaButton(metrics: metrics, plate: plate) {
+                root.addChild(multaButton)
+            }
             return root
+        }
+
+        private func makeMultaButton(metrics: PanelMetrics, plate: String) -> Entity? {
+            let cleanPlate = normalizePlate(plate)
+            guard !cleanPlate.isEmpty, cleanPlate != "UNKNOWN" else { return nil }
+
+            let token = UUID().uuidString
+            let buttonName = "multa_button_\(token)"
+            multaButtonPlates[buttonName] = cleanPlate
+
+            let buttonRoot = Entity()
+            buttonRoot.name = buttonName
+
+            let buttonWidth = min(max(metrics.width * 0.45, 0.07), metrics.width - 0.03)
+            let buttonHeight: Float = 0.018
+            let buttonMesh = MeshResource.generateBox(
+                size: [buttonWidth, buttonHeight, 0.003],
+                cornerRadius: 0.004
+            )
+            let buttonMaterial = SimpleMaterial(
+                color: UIColor(red: 0.86, green: 0.12, blue: 0.13, alpha: 0.96),
+                isMetallic: false
+            )
+            let buttonEntity = ModelEntity(mesh: buttonMesh, materials: [buttonMaterial])
+            buttonEntity.name = "multa_button_surface"
+            buttonEntity.generateCollisionShapes(recursive: false)
+            buttonRoot.addChild(buttonEntity)
+
+            let labelMesh = MeshResource.generateText(
+                "MULTA",
+                extrusionDepth: 0.0005,
+                font: .systemFont(ofSize: 0.015, weight: .bold),
+                containerFrame: .zero,
+                alignment: .center,
+                lineBreakMode: .byClipping
+            )
+            let labelEntity = ModelEntity(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
+            labelEntity.name = "multa_button_label"
+            labelEntity.scale = [0.35, 0.35, 0.35]
+            labelEntity.position = [-0.013, -0.003, 0.002]
+            buttonRoot.addChild(labelEntity)
+
+            buttonRoot.position = [0, -(metrics.height / 2) + 0.014, 0.004]
+            return buttonRoot
         }
 
         private func setPanelLines(_ panel: Entity, lines: [PanelLine], metrics: PanelMetrics) {
@@ -240,9 +302,8 @@ private struct ARViewContainer: UIViewRepresentable {
 
             for line in lines.enumerated() {
                 let yPosition = metrics.topStart - (Float(line.offset) * metrics.lineHeight)
-                let textCharWidth: Float = line.element.isTitle ? 0.0066 : 0.0058
-                let estimatedTextWidth = Float(line.element.text.count) * textCharWidth
-                let centeredTextX = -(estimatedTextWidth / 2)
+                let hasIcon = line.element.iconGlyph != nil
+                let textX = hasIcon ? metrics.textMargin : 0
 
                 if let icon = line.element.iconGlyph, let iconColor = line.element.iconColor {
                     let iconMesh = MeshResource.generateText(
@@ -272,7 +333,7 @@ private struct ARViewContainer: UIViewRepresentable {
                 )
                 let lineEntity = ModelEntity(mesh: lineMesh, materials: [UnlitMaterial(color: line.element.color)])
                 lineEntity.scale = [0.33, 0.33, 0.33]
-                lineEntity.position = [centeredTextX, yPosition, 0.002]
+                lineEntity.position = [textX, yPosition, 0.002]
                 textContainer.addChild(lineEntity)
             }
         }
@@ -341,7 +402,7 @@ private struct ARViewContainer: UIViewRepresentable {
 
         private func sendSnapshotToDetectEndpoint(image: UIImage, completion: @escaping (Data?, String) -> Void) {
             guard let imageData = image.jpegData(compressionQuality: 0.9),
-                  let url = URL(string: "http://192.168.1.81:8000/detect") else {
+                  let url = URL(string: "\(apiBaseURL)/detect") else {
                 completion(nil, """
                 {
                   "detected" : false,
@@ -422,6 +483,87 @@ private struct ARViewContainer: UIViewRepresentable {
                     """)
                 }
             }.resume()
+        }
+
+        private func multaButtonAncestor(from entity: Entity) -> Entity? {
+            var current: Entity? = entity
+            while let node = current {
+                if multaButtonPlates[node.name] != nil {
+                    return node
+                }
+                current = node.parent
+            }
+            return nil
+        }
+
+        private func disableMultaButton(_ buttonRoot: Entity) {
+            multaButtonPlates.removeValue(forKey: buttonRoot.name)
+
+            if let buttonSurface = buttonRoot.findEntity(named: "multa_button_surface") as? ModelEntity {
+                buttonSurface.model?.materials = [
+                    SimpleMaterial(
+                        color: UIColor(red: 0.42, green: 0.42, blue: 0.44, alpha: 0.95),
+                        isMetallic: false
+                    )
+                ]
+                buttonSurface.components.remove(CollisionComponent.self)
+            }
+
+            if let labelEntity = buttonRoot.findEntity(named: "multa_button_label") as? ModelEntity {
+                let labelMesh = MeshResource.generateText(
+                    "MULTATA",
+                    extrusionDepth: 0.0005,
+                    font: .systemFont(ofSize: 0.014, weight: .bold),
+                    containerFrame: .zero,
+                    alignment: .center,
+                    lineBreakMode: .byClipping
+                )
+                labelEntity.model = ModelComponent(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
+                labelEntity.scale = [0.32, 0.32, 0.32]
+                labelEntity.position = [-0.016, -0.003, 0.002]
+            }
+        }
+
+        private func normalizePlate(_ value: String) -> String {
+            value
+                .uppercased()
+                .replacingOccurrences(of: " ", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        private func markMulta(for plate: String) {
+            patchCar(plate: plate, payload: ["Multa": true])
+        }
+
+        private func updateLastSeen(for plate: String) {
+            let cleanPlate = normalizePlate(plate)
+            guard !cleanPlate.isEmpty, cleanPlate != "UNKNOWN" else { return }
+            patchCar(plate: cleanPlate, payload: ["last_seen": iso8601NowUTCString()])
+        }
+
+        private func patchCar(plate: String, payload: [String: Any]) {
+            let cleanPlate = normalizePlate(plate)
+            guard !cleanPlate.isEmpty,
+                  let encodedPlate = cleanPlate.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "\(apiBaseURL)/cars/\(encodedPlate)"),
+                  JSONSerialization.isValidJSONObject(payload),
+                  let body = try? JSONSerialization.data(withJSONObject: payload) else {
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = body
+
+            URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
+        }
+
+        private func iso8601NowUTCString() -> String {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return formatter.string(from: Date())
         }
 
         private func parseVehicleScan(from data: Data) -> VehicleScan? {
