@@ -87,23 +87,34 @@ private struct ARViewContainer: UIViewRepresentable {
             sceneStore.isSessionConfigured = true
         }
 
-        if !sceneStore.isTapGestureInstalled {
-            let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-            arView.addGestureRecognizer(tap)
-            sceneStore.isTapGestureInstalled = true
+        // Rebind recognizers to the current coordinator to avoid stale targets.
+        if let recognizers = arView.gestureRecognizers {
+            for recognizer in recognizers {
+                if recognizer is UITapGestureRecognizer || recognizer is UIPinchGestureRecognizer {
+                    arView.removeGestureRecognizer(recognizer)
+                    continue
+                }
+                if let pan = recognizer as? UIPanGestureRecognizer,
+                   pan.minimumNumberOfTouches == 2,
+                   pan.maximumNumberOfTouches == 2 {
+                    arView.removeGestureRecognizer(pan)
+                }
+            }
         }
-        if !sceneStore.isPinchGestureInstalled {
-            let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
-            arView.addGestureRecognizer(pinch)
-            sceneStore.isPinchGestureInstalled = true
-        }
-        if !sceneStore.isTwoFingerPanGestureInstalled {
-            let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTwoFingerPan(_:)))
-            pan.minimumNumberOfTouches = 2
-            pan.maximumNumberOfTouches = 2
-            arView.addGestureRecognizer(pan)
-            sceneStore.isTwoFingerPanGestureInstalled = true
-        }
+
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        arView.addGestureRecognizer(tap)
+        sceneStore.isTapGestureInstalled = true
+
+        let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
+        arView.addGestureRecognizer(pinch)
+        sceneStore.isPinchGestureInstalled = true
+
+        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTwoFingerPan(_:)))
+        pan.minimumNumberOfTouches = 2
+        pan.maximumNumberOfTouches = 2
+        arView.addGestureRecognizer(pan)
+        sceneStore.isTwoFingerPanGestureInstalled = true
         return arView
     }
 
@@ -301,12 +312,7 @@ private struct ARViewContainer: UIViewRepresentable {
                 return
             }
 
-            guard let result = arView.raycast(from: location, allowing: .estimatedPlane, alignment: .any).first else {
-                return
-            }
-
-            let transform = result.worldTransform
-            let position = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+            let position = placementPosition(for: location, in: arView)
 
             saveSnapshot(from: arView) { [weak self] image in
                 guard let self else { return }
@@ -333,6 +339,24 @@ private struct ARViewContainer: UIViewRepresentable {
                     }
                 }
             }
+        }
+
+        private func placementPosition(for location: CGPoint, in arView: ARView) -> SIMD3<Float> {
+            if let result = arView.raycast(from: location, allowing: .estimatedPlane, alignment: .any).first {
+                let transform = result.worldTransform
+                return SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+            }
+
+            guard let cameraTransform = arView.session.currentFrame?.camera.transform else {
+                return SIMD3<Float>(0, 0, -0.6)
+            }
+            let cameraPosition = SIMD3<Float>(
+                cameraTransform.columns.3.x,
+                cameraTransform.columns.3.y,
+                cameraTransform.columns.3.z
+            )
+            let forward = cameraForward(in: arView) ?? SIMD3<Float>(0, 0, -1)
+            return cameraPosition + (forward * 0.7)
         }
 
         func deleteLastGeneratedRectangle() {
