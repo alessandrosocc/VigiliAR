@@ -13,5 +13,7 @@ final class ARTrackingSceneStore: ObservableObject {
     let arView = ARView(frame: .zero)
     var isSessionConfigured = false
     var isTapGestureInstalled = false
+    var isPinchGestureInstalled = false
+    var isTwoFingerPanGestureInstalled = false
     var overlays: [ARGeneratedOverlay] = []
 }

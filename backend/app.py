@@ -67,6 +67,8 @@ LAST_REQUEST_AT = {}
 MIN_INTERVAL_SEC = 0.15
 CARS_FILE = os.path.join(os.path.dirname(__file__), "cars.yaml")
 CARS_FILE_LOCK = asyncio.Lock()
+USERS_FILE = os.path.join(os.path.dirname(__file__), "users.yaml")
+USERS_FILE_LOCK = asyncio.Lock()
 
 
 
@@ -77,6 +79,105 @@ def normalize_plate(plate: str | None) -> str:
     if not plate:
         return ""
     return "".join(plate.upper().split())
+
+def normalize_identity_value(value: str | None) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).strip().upper().split())
+
+def first_present(payload: dict, keys: list[str]) -> str:
+    for key in keys:
+        value = payload.get(key)
+        if value is not None and str(value).strip() != "":
+            return str(value).strip()
+    return ""
+
+def load_users_document() -> dict:
+    if not os.path.exists(USERS_FILE):
+        return {"utenti": []}
+    try:
+        with open(USERS_FILE, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception:
+        return {"utenti": []}
+
+    if not isinstance(data, dict):
+        return {"utenti": []}
+    if not isinstance(data.get("utenti"), list):
+        data["utenti"] = []
+    return data
+
+def save_users_document(data: dict) -> None:
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
+
+def find_user(name: str, surname: str, identifier: str) -> dict | None:
+    users_document = load_users_document()
+    users = users_document.get("utenti", [])
+    root_name = users_document.get("Nome") or users_document.get("name")
+    root_surname = users_document.get("Cognome") or users_document.get("surname")
+    root_identifier = (
+        users_document.get("matricola")
+        or users_document.get("identificativo")
+        or users_document.get("identifier")
+    )
+    normalized_name = normalize_identity_value(name)
+    normalized_surname = normalize_identity_value(surname)
+    normalized_identifier = normalize_identity_value(identifier)
+    for user in users:
+        if not isinstance(user, dict):
+            continue
+        stored_name = normalize_identity_value(
+            user.get("Nome") or user.get("name") or root_name
+        )
+        stored_surname = normalize_identity_value(
+            user.get("Cognome") or user.get("surname") or root_surname
+        )
+        stored_identifier = normalize_identity_value(
+            user.get("matricola")
+            or user.get("identificativo")
+            or user.get("identifier")
+            or root_identifier
+        )
+        if (
+            stored_name == normalized_name
+            and stored_surname == normalized_surname
+            and stored_identifier == normalized_identifier
+        ):
+            return user
+    return None
+
+@app.post("/auth/login")
+async def auth_login(payload: dict = Body(...)):
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid payload")
+
+    name = first_present(payload, ["name", "Nome"])
+    surname = first_present(payload, ["surname", "Cognome"])
+    identifier = first_present(
+        payload,
+        ["identifier", "identificativo", "matricola", "Matricola"]
+    )
+
+    if not name or not surname or not identifier:
+        raise HTTPException(
+            status_code=400,
+            detail="name, surname and identifier are required"
+        )
+
+    async with USERS_FILE_LOCK:
+        matched_user = find_user(name=name, surname=surname, identifier=identifier)
+        if matched_user is None:
+            raise HTTPException(status_code=401, detail="Utente non autorizzato")
+
+    return {
+        "authenticated": True,
+        "user": {
+            "name": matched_user.get("Nome") or matched_user.get("name"),
+            "surname": matched_user.get("Cognome") or matched_user.get("surname"),
+            "matricola": matched_user.get("matricola"),
+        },
+    }
 
 def load_cars_by_plate() -> dict[str, dict]:
     if not os.path.exists(CARS_FILE):

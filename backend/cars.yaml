@@ -1,10 +1,10 @@
 cars:
 - plate: GA129KM
-  last_revision: '2025-11-12'
-  insurance_expiration: '2025-12-31'
-  last_seen: '2026-03-18T06:58:05.859Z'
-  park_expiration: '2026-03-15T12:00:00Z'
+  last_revision: '2026-11-12'
+  insurance_expiration: '2026-12-31'
+  last_seen: '2026-03-18T08:17:56.707Z'
+  park_expiration: '2027-03-15T12:00:00Z'
   model: Nissan Micra
-  color: blue
-  year: 2018
-  multa: true
+  color: Grigia
+  year: 2006
+  multa: false

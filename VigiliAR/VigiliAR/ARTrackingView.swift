@@ -92,6 +92,18 @@ private struct ARViewContainer: UIViewRepresentable {
             arView.addGestureRecognizer(tap)
             sceneStore.isTapGestureInstalled = true
         }
+        if !sceneStore.isPinchGestureInstalled {
+            let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
+            arView.addGestureRecognizer(pinch)
+            sceneStore.isPinchGestureInstalled = true
+        }
+        if !sceneStore.isTwoFingerPanGestureInstalled {
+            let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTwoFingerPan(_:)))
+            pan.minimumNumberOfTouches = 2
+            pan.maximumNumberOfTouches = 2
+            arView.addGestureRecognizer(pan)
+            sceneStore.isTwoFingerPanGestureInstalled = true
+        }
         return arView
     }
 
@@ -106,28 +118,28 @@ private struct ARViewContainer: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject {
-        private struct PanelLine {
-            let text: String
+        private struct PanelField {
+            let label: String
+            let value: String
             let color: UIColor
-            let isTitle: Bool
-            let iconGlyph: String?
-            let iconColor: UIColor?
         }
 
         private struct PanelDisplay {
-            let lines: [PanelLine]
+            let title: String
+            let fields: [PanelField]
             let isParkExpired: Bool
+            let showMultaButton: Bool
         }
 
         private struct PanelMetrics {
             let width: Float
             let height: Float
-            let borderWidth: Float
-            let borderHeight: Float
-            let leftMargin: Float
-            let textMargin: Float
-            let topStart: Float
-            let lineHeight: Float
+            let titleY: Float
+            let firstRowY: Float
+            let secondRowY: Float
+            let leftColumnX: Float
+            let rightColumnRightEdgeX: Float
+            let buttonY: Float
         }
 
         weak var arView: ARView?
@@ -138,6 +150,14 @@ private struct ARViewContainer: UIViewRepresentable {
         var lastHandledDeleteRequest: Int = 0
         private let apiBaseURL = "http://192.168.1.60:8000"
         private var multaButtonPlates: [String: String] = [:]
+        private weak var activePinchPanel: Entity?
+        private var activePinchStartScale: SIMD3<Float> = SIMD3<Float>(repeating: 1)
+        private let minPanelScale: Float = 0.65
+        private let maxPanelScale: Float = 2.2
+        private weak var activePanPanel: Entity?
+        private var activePanPlanePoint: SIMD3<Float> = .zero
+        private var activePanPlaneNormal: SIMD3<Float> = SIMD3<Float>(0, 0, 1)
+        private var activePanPanelOffset: SIMD3<Float> = .zero
 
         func configureSession() {
             guard let arView else { return }
@@ -146,6 +166,127 @@ private struct ARViewContainer: UIViewRepresentable {
             arView.automaticallyConfigureSession = false
             arView.renderOptions.insert(.disableMotionBlur)
             arView.session.run(configuration)
+        }
+
+        @objc func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            guard let arView else { return }
+            guard recognizer.numberOfTouches >= 2 else { return }
+
+            switch recognizer.state {
+            case .began:
+                guard let panel = panelForPinchStart(recognizer, in: arView) else {
+                    return
+                }
+                activePinchPanel = panel
+                activePinchStartScale = panel.scale
+            case .changed:
+                guard let panel = activePinchPanel else { return }
+                let rawScale = Float(recognizer.scale)
+                let clamped = min(max(rawScale, minPanelScale), maxPanelScale)
+                panel.scale = activePinchStartScale * clamped
+            default:
+                activePinchPanel = nil
+                activePinchStartScale = SIMD3<Float>(repeating: 1)
+            }
+        }
+
+        @objc func handleTwoFingerPan(_ recognizer: UIPanGestureRecognizer) {
+            guard let arView else { return }
+            guard recognizer.numberOfTouches >= 2 else { return }
+
+            switch recognizer.state {
+            case .began:
+                guard let panel = panelForPanStart(recognizer, in: arView) else { return }
+                activePanPanel = panel
+                let panelPosition = panel.position(relativeTo: nil)
+                activePanPlanePoint = panelPosition
+                activePanPlaneNormal = cameraForward(in: arView) ?? SIMD3<Float>(0, 0, 1)
+
+                let midpoint = recognizer.location(in: arView)
+                if let hit = rayPlaneIntersection(
+                    screenPoint: midpoint,
+                    in: arView,
+                    planePoint: activePanPlanePoint,
+                    planeNormal: activePanPlaneNormal
+                ) {
+                    activePanPanelOffset = panelPosition - hit
+                } else {
+                    activePanPanelOffset = .zero
+                }
+            case .changed:
+                guard let panel = activePanPanel else { return }
+                let midpoint = recognizer.location(in: arView)
+                guard let hit = rayPlaneIntersection(
+                    screenPoint: midpoint,
+                    in: arView,
+                    planePoint: activePanPlanePoint,
+                    planeNormal: activePanPlaneNormal
+                ) else {
+                    return
+                }
+                panel.setPosition(hit + activePanPanelOffset, relativeTo: nil)
+            default:
+                activePanPanel = nil
+                activePanPlanePoint = .zero
+                activePanPlaneNormal = SIMD3<Float>(0, 0, 1)
+                activePanPanelOffset = .zero
+            }
+        }
+
+        private func cameraForward(in arView: ARView) -> SIMD3<Float>? {
+            guard let transform = arView.session.currentFrame?.camera.transform else { return nil }
+            let forward = SIMD3<Float>(
+                -transform.columns.2.x,
+                -transform.columns.2.y,
+                -transform.columns.2.z
+            )
+            let len = simd_length(forward)
+            guard len > 0.0001 else { return nil }
+            return forward / len
+        }
+
+        private func rayPlaneIntersection(
+            screenPoint: CGPoint,
+            in arView: ARView,
+            planePoint: SIMD3<Float>,
+            planeNormal: SIMD3<Float>
+        ) -> SIMD3<Float>? {
+            guard let ray = arView.ray(through: screenPoint) else { return nil }
+            let denom = simd_dot(ray.direction, planeNormal)
+            guard abs(denom) > 0.0001 else { return nil }
+            let t = simd_dot(planePoint - ray.origin, planeNormal) / denom
+            guard t > 0 else { return nil }
+            return ray.origin + (ray.direction * t)
+        }
+
+        private func panelForPinchStart(_ recognizer: UIPinchGestureRecognizer, in arView: ARView) -> Entity? {
+            let midpoint = recognizer.location(in: arView)
+            let firstTouch = recognizer.location(ofTouch: 0, in: arView)
+            let secondTouch = recognizer.location(ofTouch: 1, in: arView)
+            let candidates = [firstTouch, secondTouch, midpoint]
+
+            for point in candidates {
+                if let touched = arView.entity(at: point),
+                   let panel = panelAncestor(from: touched) {
+                    return panel
+                }
+            }
+            return nil
+        }
+
+        private func panelForPanStart(_ recognizer: UIPanGestureRecognizer, in arView: ARView) -> Entity? {
+            let midpoint = recognizer.location(in: arView)
+            let firstTouch = recognizer.location(ofTouch: 0, in: arView)
+            let secondTouch = recognizer.location(ofTouch: 1, in: arView)
+            let candidates = [firstTouch, secondTouch, midpoint]
+
+            for point in candidates {
+                if let touched = arView.entity(at: point),
+                   let panel = panelAncestor(from: touched) {
+                    return panel
+                }
+            }
+            return nil
         }
 
         @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
@@ -180,11 +321,7 @@ private struct ARViewContainer: UIViewRepresentable {
                         self.updateLastSeen(for: parsed.plate)
                         let display = self.makePanelDisplay(from: data, scan: parsed)
                         let anchor = AnchorEntity(world: position)
-                        let panel = self.makeInfoPanel(
-                            lines: display.lines,
-                            isParkExpired: display.isParkExpired,
-                            plate: parsed.plate
-                        )
+                        let panel = self.makeInfoPanel(display: display, plate: parsed.plate)
                         panel.position = [0, 0.06, 0]
                         anchor.addChild(panel)
                         arView.scene.addAnchor(anchor)
@@ -206,47 +343,30 @@ private struct ARViewContainer: UIViewRepresentable {
             }
         }
 
-        private func makeInfoPanel(lines: [PanelLine], isParkExpired: Bool, plate: String) -> Entity {
+        private func makeInfoPanel(display: PanelDisplay, plate: String) -> Entity {
             let root = Entity()
-            let metrics = panelMetrics(for: lines)
-
-            let shadowMesh = MeshResource.generateBox(
-                size: [metrics.borderWidth + 0.01, metrics.borderHeight + 0.01, 0.001],
-                cornerRadius: min(metrics.borderWidth, metrics.borderHeight) * 0.28
-            )
-            let shadowMaterial = SimpleMaterial(color: UIColor(white: 0, alpha: 0.35), isMetallic: false)
-            let shadow = ModelEntity(mesh: shadowMesh, materials: [shadowMaterial])
-            shadow.position = [0.003, -0.003, -0.001]
-            root.addChild(shadow)
-
-            let borderMesh = MeshResource.generateBox(
-                size: [metrics.borderWidth, metrics.borderHeight, 0.0015],
-                cornerRadius: min(metrics.borderWidth, metrics.borderHeight) * 0.25
-            )
-            let borderColor = isParkExpired
-                ? UIColor(red: 1.0, green: 0.65, blue: 0.65, alpha: 0.95)
-                : UIColor(red: 0.74, green: 1.0, blue: 0.79, alpha: 0.95)
-            let border = ModelEntity(mesh: borderMesh, materials: [SimpleMaterial(color: borderColor, isMetallic: false)])
-            border.position = [0, 0, 0.001]
-            root.addChild(border)
+            root.name = "vehicle_panel_root_\(UUID().uuidString)"
+            let metrics = panelMetrics(showMultaButton: display.showMultaButton)
 
             let panelMesh = MeshResource.generateBox(
                 size: [metrics.width, metrics.height, 0.002],
-                cornerRadius: min(metrics.width, metrics.height) * 0.24
+                cornerRadius: min(metrics.width, metrics.height) * 0.42
             )
-            let panelColor = isParkExpired
-                ? UIColor(red: 0.50, green: 0.12, blue: 0.12, alpha: 0.96)
-                : UIColor(red: 0.08, green: 0.33, blue: 0.18, alpha: 0.96)
+            let panelColor = display.isParkExpired
+                ? UIColor(red: 0.60, green: 0.12, blue: 0.12, alpha: 0.98)
+                : UIColor(red: 0.10, green: 0.52, blue: 0.22, alpha: 0.98)
             let panelMaterial = SimpleMaterial(color: panelColor, isMetallic: false)
             let panel = ModelEntity(mesh: panelMesh, materials: [panelMaterial])
+            panel.name = "panel_surface"
+            panel.generateCollisionShapes(recursive: false)
             root.addChild(panel)
 
             let textContainer = Entity()
             textContainer.name = "textContainer"
             root.addChild(textContainer)
 
-            setPanelLines(root, lines: lines, metrics: metrics)
-            if let multaButton = makeMultaButton(metrics: metrics, plate: plate) {
+            setPanelContent(root, display: display, metrics: metrics)
+            if display.showMultaButton, let multaButton = makeMultaButton(metrics: metrics, plate: plate) {
                 root.addChild(multaButton)
             }
             return root
@@ -279,7 +399,7 @@ private struct ARViewContainer: UIViewRepresentable {
             buttonRoot.addChild(buttonEntity)
 
             let labelMesh = MeshResource.generateText(
-                "MULTA",
+                "Multa",
                 extrusionDepth: 0.0005,
                 font: .systemFont(ofSize: 0.015, weight: .bold),
                 containerFrame: .zero,
@@ -288,82 +408,89 @@ private struct ARViewContainer: UIViewRepresentable {
             )
             let labelEntity = ModelEntity(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
             labelEntity.name = "multa_button_label"
-            labelEntity.scale = [0.35, 0.35, 0.35]
-            labelEntity.position = [-0.013, -0.003, 0.002]
+            let labelScale: Float = 0.33
+            labelEntity.scale = [labelScale, labelScale, labelScale]
+            let labelBounds = labelMesh.bounds.extents
+            labelEntity.position = [
+                -(labelBounds.x * labelScale) / 2,
+                -(labelBounds.y * labelScale) / 2,
+                0.002
+            ]
             buttonRoot.addChild(labelEntity)
 
-            buttonRoot.position = [0, -(metrics.height / 2) + 0.014, 0.004]
+            buttonRoot.position = [0, metrics.buttonY, 0.004]
             return buttonRoot
         }
 
-        private func setPanelLines(_ panel: Entity, lines: [PanelLine], metrics: PanelMetrics) {
+        private func setPanelContent(_ panel: Entity, display: PanelDisplay, metrics: PanelMetrics) {
             guard let textContainer = panel.findEntity(named: "textContainer") else { return }
             textContainer.children.forEach { $0.removeFromParent() }
 
-            for line in lines.enumerated() {
-                let yPosition = metrics.topStart - (Float(line.offset) * metrics.lineHeight)
-                let hasIcon = line.element.iconGlyph != nil
-                let textX = hasIcon ? metrics.textMargin : 0
+            let titleMesh = MeshResource.generateText(
+                display.title,
+                extrusionDepth: 0.0005,
+                font: .systemFont(ofSize: 0.026, weight: .bold),
+                containerFrame: .zero,
+                alignment: .left,
+                lineBreakMode: .byClipping
+            )
+            let titleEntity = ModelEntity(
+                mesh: titleMesh,
+                materials: [UnlitMaterial(color: UIColor(red: 0.96, green: 0.98, blue: 0.97, alpha: 1.0))]
+            )
+            let titleScale: Float = 0.40
+            titleEntity.scale = [titleScale, titleScale, titleScale]
+            let titleBounds = titleMesh.bounds.extents
+            titleEntity.position = [-(titleBounds.x * titleScale) / 2, metrics.titleY, 0.002]
+            textContainer.addChild(titleEntity)
 
-                if let icon = line.element.iconGlyph, let iconColor = line.element.iconColor {
-                    let iconMesh = MeshResource.generateText(
-                        icon,
-                        extrusionDepth: 0.0005,
-                        font: .systemFont(ofSize: 0.018, weight: .bold),
-                        containerFrame: .zero,
-                        alignment: .left,
-                        lineBreakMode: .byClipping
-                    )
-                    let iconEntity = ModelEntity(mesh: iconMesh, materials: [UnlitMaterial(color: iconColor)])
-                    iconEntity.scale = [0.33, 0.33, 0.33]
-                    iconEntity.position = [metrics.leftMargin, yPosition, 0.002]
-                    textContainer.addChild(iconEntity)
-                }
+            for (index, field) in display.fields.prefix(4).enumerated() {
+                let isLeft = index % 2 == 0
+                let isFirstRow = index < 2
+                let y = isFirstRow ? metrics.firstRowY : metrics.secondRowY
+                let text = "\(field.label): \(field.value)"
 
-                let lineMesh = MeshResource.generateText(
-                    line.element.text,
+                let fieldMesh = MeshResource.generateText(
+                    text,
                     extrusionDepth: 0.0005,
-                    font: .systemFont(
-                        ofSize: line.element.isTitle ? 0.022 : 0.0185,
-                        weight: line.element.isTitle ? .semibold : .regular
-                    ),
+                    font: .systemFont(ofSize: 0.022, weight: .bold),
                     containerFrame: .zero,
-                    alignment: .left,
+                    alignment: isLeft ? .left : .right,
                     lineBreakMode: .byClipping
                 )
-                let lineEntity = ModelEntity(mesh: lineMesh, materials: [UnlitMaterial(color: line.element.color)])
-                lineEntity.scale = [0.33, 0.33, 0.33]
-                lineEntity.position = [textX, yPosition, 0.002]
-                textContainer.addChild(lineEntity)
+                let fieldEntity = ModelEntity(mesh: fieldMesh, materials: [UnlitMaterial(color: field.color)])
+                let fieldScale: Float = 0.35
+                fieldEntity.scale = [fieldScale, fieldScale, fieldScale]
+                if isLeft {
+                    fieldEntity.position = [metrics.leftColumnX, y, 0.002]
+                } else {
+                    let bounds = fieldMesh.bounds.extents
+                    let textWidth = bounds.x * fieldScale
+                    fieldEntity.position = [metrics.rightColumnRightEdgeX - textWidth, y, 0.002]
+                }
+                textContainer.addChild(fieldEntity)
             }
         }
 
-        private func panelMetrics(for lines: [PanelLine]) -> PanelMetrics {
-            let maxChars = max(lines.map { $0.text.count }.max() ?? 22, 16)
-            let lineCount = max(lines.count, 1)
-
-            // Character-based sizing tuned for RealityKit text scale used below.
-            let estimatedWidth = Float(maxChars) * 0.0046 + 0.054
-            let width = min(max(estimatedWidth, 0.155), 0.21)
-
-            let estimatedHeight = Float(lineCount) * 0.018 + 0.032
-            let height = min(max(estimatedHeight, 0.085), 0.145)
-
-            let borderWidth = width + 0.006
-            let borderHeight = height + 0.006
-            let leftMargin = -(width / 2) + 0.011
-            let textMargin = leftMargin + 0.016
-            let topStart = (height / 2) - 0.016
+        private func panelMetrics(showMultaButton: Bool) -> PanelMetrics {
+            let width: Float = 0.27
+            let height: Float = showMultaButton ? 0.145 : 0.115
+            let titleY = (height / 2) - 0.018
+            let firstRowY = titleY - 0.030
+            let secondRowY = firstRowY - 0.024
+            let leftColumnX = -(width / 2) + 0.014
+            let rightColumnRightEdgeX = (width / 2) - 0.014
+            let buttonY = -(height / 2) + 0.016
 
             return PanelMetrics(
                 width: width,
                 height: height,
-                borderWidth: borderWidth,
-                borderHeight: borderHeight,
-                leftMargin: leftMargin,
-                textMargin: textMargin,
-                topStart: topStart,
-                lineHeight: 0.018
+                titleY: titleY,
+                firstRowY: firstRowY,
+                secondRowY: secondRowY,
+                leftColumnX: leftColumnX,
+                rightColumnRightEdgeX: rightColumnRightEdgeX,
+                buttonY: buttonY
             )
         }
 
@@ -496,6 +623,17 @@ private struct ARViewContainer: UIViewRepresentable {
             return nil
         }
 
+        private func panelAncestor(from entity: Entity) -> Entity? {
+            var current: Entity? = entity
+            while let node = current {
+                if node.name.hasPrefix("vehicle_panel_root_") {
+                    return node
+                }
+                current = node.parent
+            }
+            return nil
+        }
+
         private func disableMultaButton(_ buttonRoot: Entity) {
             multaButtonPlates.removeValue(forKey: buttonRoot.name)
 
@@ -511,7 +649,7 @@ private struct ARViewContainer: UIViewRepresentable {
 
             if let labelEntity = buttonRoot.findEntity(named: "multa_button_label") as? ModelEntity {
                 let labelMesh = MeshResource.generateText(
-                    "MULTATA",
+                    "Multata",
                     extrusionDepth: 0.0005,
                     font: .systemFont(ofSize: 0.014, weight: .bold),
                     containerFrame: .zero,
@@ -519,8 +657,14 @@ private struct ARViewContainer: UIViewRepresentable {
                     lineBreakMode: .byClipping
                 )
                 labelEntity.model = ModelComponent(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
-                labelEntity.scale = [0.32, 0.32, 0.32]
-                labelEntity.position = [-0.016, -0.003, 0.002]
+                let labelScale: Float = 0.31
+                labelEntity.scale = [labelScale, labelScale, labelScale]
+                let labelBounds = labelMesh.bounds.extents
+                labelEntity.position = [
+                    -(labelBounds.x * labelScale) / 2,
+                    -(labelBounds.y * labelScale) / 2,
+                    0.002
+                ]
             }
         }
 
@@ -667,44 +811,43 @@ private struct ARViewContainer: UIViewRepresentable {
             let parkExpired = isExpiredDateString(parkValue)
             let insuranceExpired = isExpiredDateString(insuranceValue)
             let revisionExpired = isExpiredDateString(revisionValue)
+            let multaRaw = findFirstValue(in: flatMap, matchingAny: ["multa"])
+            let multaState = multaRaw.flatMap(boolFromString)
+            let hasAlert = (parkExpired == true) || (insuranceExpired == true) || (revisionExpired == true) || (multaState == true)
 
             let neutral = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 1.0)
             let okay = UIColor(red: 0.60, green: 0.97, blue: 0.66, alpha: 1.0)
             let alert = UIColor(red: 1.0, green: 0.44, blue: 0.44, alpha: 1.0)
-            let iconNeutral = UIColor(red: 0.85, green: 0.92, blue: 1.0, alpha: 1.0)
 
-            let lines: [PanelLine] = [
-                PanelLine(
-                    text: "\(trimValue(scan.plate, max: 10)) • \(trimValue(modelValue, max: 12))",
-                    color: neutral,
-                    isTitle: true,
-                    iconGlyph: "CAR",
-                    iconColor: iconNeutral
+            let fields: [PanelField] = [
+                PanelField(
+                    label: "Park",
+                    value: trimValue(formatDisplayDate(parkValue), max: 18),
+                    color: parkExpired == nil ? neutral : (parkExpired == true ? alert : okay)
                 ),
-                PanelLine(
-                    text: "Park \(trimValue(parkValue, max: 14))",
-                    color: parkExpired == nil ? neutral : (parkExpired == true ? alert : okay),
-                    isTitle: false,
-                    iconGlyph: "P",
-                    iconColor: parkExpired == nil ? iconNeutral : (parkExpired == true ? alert : okay)
+                PanelField(
+                    label: "Insurance",
+                    value: trimValue(formatDisplayDate(insuranceValue), max: 18),
+                    color: insuranceExpired == nil ? neutral : (insuranceExpired == true ? alert : okay)
                 ),
-                PanelLine(
-                    text: "Insurance \(trimValue(insuranceValue, max: 14))",
-                    color: insuranceExpired == nil ? neutral : (insuranceExpired == true ? alert : okay),
-                    isTitle: false,
-                    iconGlyph: "I",
-                    iconColor: insuranceExpired == nil ? iconNeutral : (insuranceExpired == true ? alert : okay)
+                PanelField(
+                    label: "Revision",
+                    value: trimValue(formatDisplayDate(revisionValue), max: 18),
+                    color: revisionExpired == nil ? neutral : (revisionExpired == true ? alert : okay)
                 ),
-                PanelLine(
-                    text: "Revision \(trimValue(revisionValue, max: 14))",
-                    color: revisionExpired == nil ? neutral : (revisionExpired == true ? alert : okay),
-                    isTitle: false,
-                    iconGlyph: "R",
-                    iconColor: revisionExpired == nil ? iconNeutral : (revisionExpired == true ? alert : okay)
+                PanelField(
+                    label: "Multa",
+                    value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO"),
+                    color: multaState == nil ? neutral : (multaState == true ? alert : okay)
                 ),
             ]
 
-            return PanelDisplay(lines: lines, isParkExpired: parkExpired ?? false)
+            return PanelDisplay(
+                title: "\(trimValue(scan.plate, max: 10)) • \(trimValue(modelValue, max: 12))",
+                fields: fields,
+                isParkExpired: hasAlert,
+                showMultaButton: (parkExpired == true) && (multaState == false)
+            )
         }
 
         private func isCarFound(in data: Data) -> Bool {
@@ -745,6 +888,11 @@ private struct ARViewContainer: UIViewRepresentable {
 
         private func parseFlexibleDate(_ raw: String) -> Date? {
             let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let isoDate = iso.date(from: raw) {
+                return isoDate
+            }
+            iso.formatOptions = [.withInternetDateTime]
             if let isoDate = iso.date(from: raw) {
                 return isoDate
             }
@@ -771,6 +919,30 @@ private struct ARViewContainer: UIViewRepresentable {
             }
 
             return nil
+        }
+
+        private func formatDisplayDate(_ raw: String) -> String {
+            let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty, value != "-", let date = parseFlexibleDate(value) else {
+                return value.isEmpty ? "-" : value
+            }
+
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "it_IT")
+            formatter.timeZone = TimeZone.current
+            formatter.dateFormat = value.contains("T") || value.contains(":") ? "dd/MM/yyyy HH:mm" : "dd/MM/yyyy"
+            return formatter.string(from: date)
+        }
+
+        private func boolFromString(_ raw: String) -> Bool? {
+            switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case "true", "1", "yes", "y", "si":
+                return true
+            case "false", "0", "no", "n":
+                return false
+            default:
+                return nil
+            }
         }
 
         private func trimValue(_ value: String, max: Int) -> String {

@@ -11,26 +11,21 @@ import SwiftUI
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-    var window: UIWindow?
-    private let vehicleStore = VehicleStore()
-    private let arTrackingSceneStore = ARTrackingSceneStore()
-    private let userProfileStore = UserProfileStore()
-
-
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-
-        // Create the SwiftUI view that provides the window contents.
-        let contentView = ContentView()
-            .environmentObject(vehicleStore)
-            .environmentObject(arTrackingSceneStore)
-            .environmentObject(userProfileStore)
-
-        // Use a UIHostingController as window root view controller.
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = UIHostingController(rootView: contentView)
-        self.window = window
-        window.makeKeyAndVisible()
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(
+            name: nil,
+            sessionRole: connectingSceneSession.role
+        )
+        configuration.delegateClass = SceneDelegate.self
+        return configuration
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -51,4 +46,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
 
+}
+
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+
+    private let vehicleStore = VehicleStore()
+    private let arTrackingSceneStore = ARTrackingSceneStore()
+    private let userProfileStore = UserProfileStore()
+
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        guard let windowScene = scene as? UIWindowScene else { return }
+
+        let rootView = ContentView()
+            .environmentObject(vehicleStore)
+            .environmentObject(arTrackingSceneStore)
+            .environmentObject(userProfileStore)
+
+        let window = UIWindow(windowScene: windowScene)
+        window.rootViewController = UIHostingController(rootView: rootView)
+        self.window = window
+        window.makeKeyAndVisible()
+    }
 }
