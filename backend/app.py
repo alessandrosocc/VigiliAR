@@ -1,0 +1,174 @@
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fast_alpr import ALPR
+from fast_alpr.base import BaseOCR, OcrResult
+from io import BytesIO
+from PIL import Image, UnidentifiedImageError
+import tempfile, os, time, asyncio
+import cv2
+import numpy as np
+from fast_plate_ocr import LicensePlateRecognizer
+import yaml
+
+"""
+1. uvicorn app:app --host <ip> --port 8000
+2. cambia ip nella app in swift
+
+
+
+b"""
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # in prod: limita ai tuoi domini
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class CompatibleOCR(BaseOCR):
+    def __init__(self, hub_ocr_model: str | None = "cct-xs-v1-global-model") -> None:
+        self.ocr_model = LicensePlateRecognizer(hub_ocr_model=hub_ocr_model)
+
+    def predict(self, cropped_plate: np.ndarray) -> OcrResult | None:
+        if cropped_plate is None:
+            return None
+        if self.ocr_model.config.image_color_mode == "grayscale":
+            cropped_plate = cv2.cvtColor(cropped_plate, cv2.COLOR_BGR2GRAY)
+        pred = self.ocr_model.run_one(cropped_plate, return_confidence=True)
+        confidence = (
+            float(np.mean(pred.char_probs))
+            if pred.char_probs is not None
+            else 0.0
+        )
+        return OcrResult(text=pred.plate, confidence=confidence)
+
+
+alpr = ALPR(
+    detector_model="yolo-v9-t-384-license-plate-end2end",
+    ocr=CompatibleOCR("cct-xs-v1-global-model"),
+)
+
+# --- Tuning ---
+MAX_W, MAX_H = 800, 600
+try:
+    RESAMPLE = Image.BILINEAR
+except AttributeError:
+    from PIL import Image as _I
+    RESAMPLE = _I.Resampling.BILINEAR
+
+JPEG_QUALITY = 50
+JPEG_SUBSAMPLING = 2
+JPEG_OPTIMIZE = True
+
+LAST_REQUEST_AT = {}
+MIN_INTERVAL_SEC = 0.15
+CARS_FILE = os.path.join(os.path.dirname(__file__), "cars.yaml")
+
+
+
+def clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+def normalize_plate(plate: str | None) -> str:
+    if not plate:
+        return ""
+    return "".join(plate.upper().split())
+
+def load_cars_by_plate() -> dict[str, dict]:
+    if not os.path.exists(CARS_FILE):
+        return {}
+    try:
+        with open(CARS_FILE, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+    cars = data.get("cars", []) if isinstance(data, dict) else []
+    cars_by_plate: dict[str, dict] = {}
+    for car in cars:
+        if not isinstance(car, dict):
+            continue
+        plate = normalize_plate(str(car.get("plate", "")))
+        if plate:
+            cars_by_plate[plate] = car
+    return cars_by_plate
+
+@app.post("/detect")
+async def detect_plate(request: Request, file: UploadFile = File(...)):
+    ip = request.client.host if request.client else "unknown"
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    try:
+        raw = await file.read()
+        image = Image.open(BytesIO(raw)).convert("RGB")
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="Invalid image file")
+
+    ow, oh = image.size
+    image.thumbnail((MAX_W, MAX_H), resample=RESAMPLE)
+    nw, nh = image.size
+    sx = ow / max(nw, 1)
+    sy = oh / max(nh, 1)
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", dir="/tmp")
+    tmp_path = tmp.name
+    tmp.close()  # best practice
+
+    try:
+        image.save(
+            tmp_path, "JPEG",
+            quality=JPEG_QUALITY, subsampling=JPEG_SUBSAMPLING, optimize=JPEG_OPTIMIZE
+        )
+
+
+        results = alpr.predict(tmp_path)
+        
+
+        if not results:
+            return JSONResponse(status_code=200, content={
+                "detected": False, "plate": None, "confidence": 0,
+                "x1": 0, "y1": 0, "x2": 0, "y2": 0,
+                "car_found": False,
+                "car_data": None
+            })
+
+        r0 = results[0]
+        x1 = r0.detection.bounding_box.x1 * sx
+        y1 = r0.detection.bounding_box.y1 * sy
+        x2 = r0.detection.bounding_box.x2 * sx
+        y2 = r0.detection.bounding_box.y2 * sy
+
+        # clamp alle dimensioni originali
+        x1 = clamp(x1, 0, ow); y1 = clamp(y1, 0, oh)
+        x2 = clamp(x2, 0, ow); y2 = clamp(y2, 0, oh)
+
+        # return JSONResponse(status_code=200, content={
+        #     "detected": True,
+        #     "plate": r0.ocr.text,
+        #     "confidence": r0.ocr.confidence,
+        #     "x1": x1, "y1": y1, "x2": x2, "y2": y2
+        # })
+        plate_text = r0.ocr.text
+        cars_by_plate = load_cars_by_plate()
+        car_data = cars_by_plate.get(normalize_plate(plate_text))
+
+        return JSONResponse(status_code=200, content={
+            "detected": True,
+            "plate": plate_text,
+            "confidence": r0.ocr.confidence,
+            "car_found": car_data is not None,
+            "car_data": car_data
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
