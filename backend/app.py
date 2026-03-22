@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from fast_plate_ocr import LicensePlateRecognizer
 import yaml
+from datetime import datetime, timezone
 
 """
 1. uvicorn app:app --host <ip> --port 8000
@@ -69,6 +70,8 @@ CARS_FILE = os.path.join(os.path.dirname(__file__), "cars.yaml")
 CARS_FILE_LOCK = asyncio.Lock()
 USERS_FILE = os.path.join(os.path.dirname(__file__), "users.yaml")
 USERS_FILE_LOCK = asyncio.Lock()
+SERVICE_CHECKINS_FILE = os.path.join(os.path.dirname(__file__), "prese_servizio.yaml")
+SERVICE_CHECKINS_FILE_LOCK = asyncio.Lock()
 
 
 
@@ -109,6 +112,25 @@ def load_users_document() -> dict:
 
 def save_users_document(data: dict) -> None:
     with open(USERS_FILE, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
+
+def load_service_checkins_document() -> dict:
+    if not os.path.exists(SERVICE_CHECKINS_FILE):
+        return {"prese_servizio": []}
+    try:
+        with open(SERVICE_CHECKINS_FILE, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception:
+        return {"prese_servizio": []}
+
+    if not isinstance(data, dict):
+        return {"prese_servizio": []}
+    if not isinstance(data.get("prese_servizio"), list):
+        data["prese_servizio"] = []
+    return data
+
+def save_service_checkins_document(data: dict) -> None:
+    with open(SERVICE_CHECKINS_FILE, "w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
 
 def find_user(name: str, surname: str, identifier: str) -> dict | None:
@@ -178,6 +200,60 @@ async def auth_login(payload: dict = Body(...)):
             "matricola": matched_user.get("matricola"),
         },
     }
+
+@app.post("/service/checkin")
+@app.post("/service/check-in")
+async def service_checkin(payload: dict = Body(...)):
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid payload")
+
+    name = first_present(payload, ["name", "Nome"])
+    surname = first_present(payload, ["surname", "Cognome"])
+    identifier = first_present(
+        payload,
+        ["identifier", "identificativo", "matricola", "Matricola"]
+    )
+    started_at = first_present(payload, ["started_at", "data_ora_presa_servizio"])
+    street = first_present(payload, ["street", "via"])
+    latitude = payload.get("latitude")
+    longitude = payload.get("longitude")
+
+    if not name or not surname or not identifier:
+        raise HTTPException(
+            status_code=400,
+            detail="name, surname and identifier are required"
+        )
+
+    if not started_at:
+        started_at = datetime.now(timezone.utc).isoformat()
+
+    if not street:
+        street = "Via non disponibile"
+
+    async with USERS_FILE_LOCK:
+        matched_user = find_user(name=name, surname=surname, identifier=identifier)
+        if matched_user is None:
+            raise HTTPException(status_code=401, detail="Utente non autorizzato")
+
+    checkin_entry = {
+        "Nome": matched_user.get("Nome") or matched_user.get("name") or name,
+        "Cognome": matched_user.get("Cognome") or matched_user.get("surname") or surname,
+        "matricola": matched_user.get("matricola") or identifier,
+        "data_ora_presa_servizio": started_at,
+        "via": street,
+    }
+    if latitude is not None:
+        checkin_entry["latitude"] = latitude
+    if longitude is not None:
+        checkin_entry["longitude"] = longitude
+
+    async with SERVICE_CHECKINS_FILE_LOCK:
+        data = load_service_checkins_document()
+        checkins = data.get("prese_servizio", [])
+        checkins.append(checkin_entry)
+        save_service_checkins_document(data)
+
+    return {"saved": True, "checkin": checkin_entry}
 
 def load_cars_by_plate() -> dict[str, dict]:
     if not os.path.exists(CARS_FILE):

@@ -262,6 +262,7 @@
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = CAMERA_USAGE_DESCRIPTION;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "VigiliAR uses your local network to detect license plates from snapshots.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "VigiliAR usa la tua posizione per registrare via e orario della presa servizio.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -302,6 +303,7 @@
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = CAMERA_USAGE_DESCRIPTION;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "VigiliAR uses your local network to detect license plates from snapshots.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "VigiliAR usa la tua posizione per registrare via e orario della presa servizio.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

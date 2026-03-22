@@ -11,6 +11,7 @@ struct ARTrackingView: View {
     @State private var shareURL: URL?
     @State private var isShowingShareSheet: Bool = false
     @State private var deleteRequestCounter: Int = 0
+    @State private var hasTappedForDetection: Bool = false
 
     var body: some View {
         ZStack {
@@ -18,18 +19,23 @@ struct ARTrackingView: View {
                 lastSnapshotFilename: $lastSnapshotFilename,
                 lastSnapshotPath: $lastSnapshotPath,
                 deleteRequestCounter: $deleteRequestCounter,
+                hasTappedForDetection: $hasTappedForDetection,
                 vehicleStore: vehicleStore,
-                sceneStore: sceneStore
+                sceneStore: sceneStore,
+                userProfileStore: userProfileStore
             )
                 .ignoresSafeArea()
 
-            VStack {
-                Text("👋🏻 Hello, \(userProfileStore.greetingName)")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-
-                HStack {
+            VStack(spacing: 14) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Rilevazione AR")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        Text("Operatore: \(userProfileStore.greetingName)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
                     Button {
                         deleteRequestCounter += 1
                     } label: {
@@ -53,12 +59,33 @@ struct ARTrackingView: View {
                     }
                     .disabled(lastSnapshotPath.isEmpty)
                 }
-                .padding([.top, .horizontal])
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+
+                if !hasTappedForDetection {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Tocca lo schermo per creare il pannello sul veicolo rilevato.")
+                            .font(.footnote.weight(.semibold))
+                        Text(lastSnapshotPath.isEmpty ? "Nessuno snapshot condivisibile" : "Ultimo snapshot: \(lastSnapshotFilename)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(.horizontal, 12)
+                }
 
                 Spacer()
             }
         }
         .navigationTitle("Rilevazione Auto")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isShowingShareSheet) {
             if let shareURL {
                 ShareSheet(items: [shareURL])
@@ -71,21 +98,26 @@ private struct ARViewContainer: UIViewRepresentable {
     @Binding var lastSnapshotFilename: String
     @Binding var lastSnapshotPath: String
     @Binding var deleteRequestCounter: Int
+    @Binding var hasTappedForDetection: Bool
     @ObservedObject var vehicleStore: VehicleStore
     @ObservedObject var sceneStore: ARTrackingSceneStore
+    @ObservedObject var userProfileStore: UserProfileStore
 
     func makeUIView(context: Context) -> ARView {
         let arView = sceneStore.arView
         context.coordinator.arView = arView
         context.coordinator.lastSnapshotFilename = $lastSnapshotFilename
         context.coordinator.lastSnapshotPath = $lastSnapshotPath
+        context.coordinator.hasTappedForDetection = $hasTappedForDetection
         context.coordinator.vehicleStore = vehicleStore
         context.coordinator.sceneStore = sceneStore
+        context.coordinator.userProfileStore = userProfileStore
 
         if !sceneStore.isSessionConfigured {
             context.coordinator.configureSession()
             sceneStore.isSessionConfigured = true
         }
+        context.coordinator.ensureSnapshotsDirectoryExists()
 
         // Rebind recognizers to the current coordinator to avoid stale targets.
         if let recognizers = arView.gestureRecognizers {
@@ -130,6 +162,7 @@ private struct ARViewContainer: UIViewRepresentable {
 
     final class Coordinator: NSObject {
         private struct PanelField {
+            let icon: String
             let label: String
             let value: String
             let color: UIColor
@@ -156,10 +189,12 @@ private struct ARViewContainer: UIViewRepresentable {
         weak var arView: ARView?
         var lastSnapshotFilename: Binding<String>?
         var lastSnapshotPath: Binding<String>?
+        var hasTappedForDetection: Binding<Bool>?
         weak var vehicleStore: VehicleStore?
         weak var sceneStore: ARTrackingSceneStore?
+        weak var userProfileStore: UserProfileStore?
         var lastHandledDeleteRequest: Int = 0
-        private let apiBaseURL = "http://192.168.1.60:8000"
+        private let apiBaseURL = "http://192.168.1.81:8000"
         private var multaButtonPlates: [String: String] = [:]
         private weak var activePinchPanel: Entity?
         private var activePinchStartScale: SIMD3<Float> = SIMD3<Float>(repeating: 1)
@@ -169,6 +204,7 @@ private struct ARViewContainer: UIViewRepresentable {
         private var activePanPlanePoint: SIMD3<Float> = .zero
         private var activePanPlaneNormal: SIMD3<Float> = SIMD3<Float>(0, 0, 1)
         private var activePanPanelOffset: SIMD3<Float> = .zero
+        private let snapshotsFolderName = "VigiliAR Snapshots"
 
         func configureSession() {
             guard let arView else { return }
@@ -303,6 +339,9 @@ private struct ARViewContainer: UIViewRepresentable {
         @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
             guard let arView else { return }
             let location = recognizer.location(in: arView)
+            DispatchQueue.main.async {
+                self.hasTappedForDetection?.wrappedValue = true
+            }
 
             if let tappedEntity = arView.entity(at: location),
                let multaButton = multaButtonAncestor(from: tappedEntity),
@@ -320,7 +359,12 @@ private struct ARViewContainer: UIViewRepresentable {
                     DispatchQueue.main.async {
                         guard let data,
                               self.isCarFound(in: data),
-                              let parsed = self.parseVehicleScan(from: data) else {
+                              let parsed = self.parseVehicleScan(
+                                from: data,
+                                detectedStreet: self.userProfileStore?.currentStreet
+                                    ?? self.userProfileStore?.serviceStreet
+                                    ?? "Via non disponibile"
+                              ) else {
                             return
                         }
 
@@ -329,6 +373,7 @@ private struct ARViewContainer: UIViewRepresentable {
                         let anchor = AnchorEntity(world: position)
                         let panel = self.makeInfoPanel(display: display, plate: parsed.plate)
                         panel.position = [0, 0.06, 0]
+                        self.orientPanelTowardCamera(panel, anchorPosition: position)
                         anchor.addChild(panel)
                         arView.scene.addAnchor(anchor)
 
@@ -460,7 +505,7 @@ private struct ARViewContainer: UIViewRepresentable {
             )
             let titleEntity = ModelEntity(
                 mesh: titleMesh,
-                materials: [UnlitMaterial(color: UIColor(red: 0.96, green: 0.98, blue: 0.97, alpha: 1.0))]
+                materials: [UnlitMaterial(color: UIColor.white)]
             )
             let titleScale: Float = 0.40
             titleEntity.scale = [titleScale, titleScale, titleScale]
@@ -518,6 +563,41 @@ private struct ARViewContainer: UIViewRepresentable {
             )
         }
 
+        private func orientPanelTowardCamera(_ panel: Entity, anchorPosition: SIMD3<Float>) {
+            guard let cameraTransform = arView?.session.currentFrame?.camera.transform else { return }
+
+            let cameraWorld = SIMD3<Float>(
+                cameraTransform.columns.3.x,
+                cameraTransform.columns.3.y,
+                cameraTransform.columns.3.z
+            )
+            let panelWorld = anchorPosition + panel.position
+            let horizontalDirection = SIMD3<Float>(
+                cameraWorld.x - panelWorld.x,
+                0,
+                cameraWorld.z - panelWorld.z
+            )
+            let length = simd_length(horizontalDirection)
+            guard length > 0.0001 else { return }
+
+            let normalized = horizontalDirection / length
+            let yaw = atan2(normalized.x, normalized.z)
+            panel.orientation = simd_quatf(angle: yaw, axis: [0, 1, 0])
+        }
+
+        private func snapshotsDirectoryURL() -> URL? {
+            let fileManager = FileManager.default
+            guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                return nil
+            }
+            return documentsDirectory.appendingPathComponent(snapshotsFolderName, isDirectory: true)
+        }
+
+        func ensureSnapshotsDirectoryExists() {
+            guard let snapshotsDirectory = snapshotsDirectoryURL() else { return }
+            try? FileManager.default.createDirectory(at: snapshotsDirectory, withIntermediateDirectories: true)
+        }
+
         private func saveSnapshot(from arView: ARView, completion: @escaping (UIImage) -> Void) {
             arView.snapshot(saveToHDR: false) { [weak self] image in
                 guard let image, let pngData = image.pngData() else { return }
@@ -527,10 +607,7 @@ private struct ARViewContainer: UIViewRepresentable {
                 let filename = "snapshot-\(formatter.string(from: Date())).png"
 
                 let fileManager = FileManager.default
-                guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-                    return
-                }
-                let snapshotsDirectory = documentsDirectory.appendingPathComponent("ARSnapshots", isDirectory: true)
+                guard let snapshotsDirectory = self?.snapshotsDirectoryURL() else { return }
 
                 do {
                     try fileManager.createDirectory(at: snapshotsDirectory, withIntermediateDirectories: true)
@@ -734,27 +811,36 @@ private struct ARViewContainer: UIViewRepresentable {
             return formatter.string(from: Date())
         }
 
-        private func parseVehicleScan(from data: Data) -> VehicleScan? {
+        private func parseVehicleScan(from data: Data, detectedStreet: String) -> VehicleScan? {
             guard let root = try? JSONSerialization.jsonObject(with: data) else { return nil }
             let flatMap = flattenJSON(root)
 
             let plateKeys = ["plate", "license_plate", "plate_number", "number_plate", "licenseplate"]
             let plate = findPlate(in: flatMap, keys: plateKeys) ?? "Unknown"
+            let parkValue = findFirstValue(in: flatMap, matchingAny: [
+                "park_expiration", "parking_expiration", "parking_expiry", "park_expiry"
+            ]) ?? "-"
+            let insuranceValue = findFirstValue(in: flatMap, matchingAny: [
+                "insurance_expiration", "insurance_expiry"
+            ]) ?? "-"
+            let revisionValue = findFirstValue(in: flatMap, matchingAny: [
+                "last_revision", "revision_expiration", "revision_expiry"
+            ]) ?? "-"
+            let multaRaw = findFirstValue(in: flatMap, matchingAny: ["multa"])
+            let multaState = multaRaw.flatMap(boolFromString)
 
-            let details = flatMap
-                .filter { key, value in
-                    let lowKey = key.lowercased()
-                    let isPlateField = plateKeys.contains { lowKey.contains($0) }
-                    return !isPlateField && !value.isEmpty
-                }
-                .sorted { $0.key < $1.key }
-                .prefix(4)
-                .map { VehicleDetail(key: prettifyKey($0.key), value: $0.value) }
+            let details = [
+                VehicleDetail(key: "Park Expiration", value: formatDisplayDate(parkValue)),
+                VehicleDetail(key: "Insurance Expiration", value: formatDisplayDate(insuranceValue)),
+                VehicleDetail(key: "Last Revision", value: formatDisplayDate(revisionValue)),
+                VehicleDetail(key: "Multa", value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO")),
+            ]
 
             return VehicleScan(
                 id: UUID(),
                 plate: plate,
                 capturedAt: Date(),
+                capturedStreet: detectedStreet,
                 details: details
             )
         }
@@ -839,30 +925,32 @@ private struct ARViewContainer: UIViewRepresentable {
             let multaState = multaRaw.flatMap(boolFromString)
             let hasAlert = (parkExpired == true) || (insuranceExpired == true) || (revisionExpired == true) || (multaState == true)
 
-            let neutral = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 1.0)
-            let okay = UIColor(red: 0.60, green: 0.97, blue: 0.66, alpha: 1.0)
-            let alert = UIColor(red: 1.0, green: 0.44, blue: 0.44, alpha: 1.0)
+            let textColor = UIColor(red: 0.96, green: 0.98, blue: 0.97, alpha: 1.0)
 
             let fields: [PanelField] = [
                 PanelField(
-                    label: "Park",
+                    icon: "P",
+                    label: "Parcheggio",
                     value: trimValue(formatDisplayDate(parkValue), max: 18),
-                    color: parkExpired == nil ? neutral : (parkExpired == true ? alert : okay)
+                    color: textColor
                 ),
                 PanelField(
-                    label: "Insurance",
+                    icon: "A",
+                    label: "Assic.",
                     value: trimValue(formatDisplayDate(insuranceValue), max: 18),
-                    color: insuranceExpired == nil ? neutral : (insuranceExpired == true ? alert : okay)
+                    color: textColor
                 ),
                 PanelField(
-                    label: "Revision",
+                    icon: "R",
+                    label: "Revis.",
                     value: trimValue(formatDisplayDate(revisionValue), max: 18),
-                    color: revisionExpired == nil ? neutral : (revisionExpired == true ? alert : okay)
+                    color: textColor
                 ),
                 PanelField(
+                    icon: "!",
                     label: "Multa",
                     value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO"),
-                    color: multaState == nil ? neutral : (multaState == true ? alert : okay)
+                    color: textColor
                 ),
             ]
 

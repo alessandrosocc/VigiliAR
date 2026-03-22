@@ -5,6 +5,7 @@ struct VehicleScan: Identifiable, Equatable {
     let id: UUID
     let plate: String
     let capturedAt: Date
+    let capturedStreet: String
     let details: [VehicleDetail]
 }
 
