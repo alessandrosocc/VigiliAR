@@ -1,0 +1,463 @@
+prese_servizio:
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T18:24:25.788Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24209456157055
+  longitude: 9.204046942823192
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T18:27:04.469Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207965527125
+  longitude: 9.203906567440445
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T18:31:09.324Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207965527125
+  longitude: 9.203906567440445
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T18:35:19.446Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207965527125
+  longitude: 9.203906567440445
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T18:39:20.266Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24207859249089
+  longitude: 9.204018282560224
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:01:28.608Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:02:45.136Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:05:04.020Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:06:58.000Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:10:52.855Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:13:59.667Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:18:27.675Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:19:56.306Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:23:33.933Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:25:13.101Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:26:39.381Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:28:33.250Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:33:22.020Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:34:14.346Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:36:07.150Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:37:28.038Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:38:02.869Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:41:35.653Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:42:16.179Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:42:21.349Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:42:26.585Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:44:04.869Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:44:42.098Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:48:49.551Z'
+  via: Coordinate 37.33473, -122.00892
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:49:29.197Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T19:54:44.640Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T20:04:20.820Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T20:07:38.539Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T20:08:29.778Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T20:10:01.832Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24208391159763
+  longitude: 9.204024078944109
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-23T20:11:24.713Z'
+  via: Apple Park Way, 1 - Cupertino
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:38:07.105Z'
+  via: Stockton St, 1-99 - San Francisco
+  latitude: 37.785834
+  longitude: -122.406417
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:24:43.651Z'
+  via: Stockton St, 1-99 - San Francisco
+  latitude: 37.785834
+  longitude: -122.406417
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:26:42.002Z'
+  via: Stockton St, 1-99 - San Francisco
+  latitude: 37.785834
+  longitude: -122.406417
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:33:45.713Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:34:16.054Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:51:07.416Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:53:22.971Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:43:34.007Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:53:37.677Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:54:52.822Z'
+  via: Piazza Yenne, Cagliari
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T19:58:39.733Z'
+  via: Piazza Yenne, Cagliari
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:03:51.665Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:05:25.844Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:05:32.995Z'
+  via: Piazza Yenne, Cagliari
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T21:40:45.726Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24208373893279
+  longitude: 9.204023140293002
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:31:29.681Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T21:42:29.624Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207393770229
+  longitude: 9.20399482931825
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:34:06.632Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:38:03.183Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:38:50.774Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:39:52.409Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T21:50:51.045Z'
+  via: Via Germania, 14 - Quartu Sant'Elena
+  latitude: 39.242110521109346
+  longitude: 9.204040224299249
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:42:24.648Z'
+  via: Piazza Yenne, Cagliari
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:47:06.841Z'
+  via: Piazza Yenne, Cagliari
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T21:59:00.958Z'
+  via: Via Germania, 14 - Quartu Sant'Elena
+  latitude: 39.24209010512874
+  longitude: 9.204021049690551
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T21:59:19.612Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.242086806050104
+  longitude: 9.204022949464703
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T20:51:41.570Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T22:02:44.697Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.2420827949203
+  longitude: 9.204025340902895
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T22:23:51.661Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24208193743376
+  longitude: 9.20402579200358
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-27T22:43:38.578Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207393770229
+  longitude: 9.20399482931825

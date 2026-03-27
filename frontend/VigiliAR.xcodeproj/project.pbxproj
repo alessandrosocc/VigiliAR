@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		62662B0C2F672493004D2E59 /* VigiliAR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VigiliAR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		62662B0C2F672493004D2E59 /* VigiliAR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = VigiliAR.app; path = "/Users/alessandrococco/Documenti Locale/Programmazione/Projects/VigiliAR XR Version/VigiliAR/build/Debug-iphoneos/VigiliAR.app"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -33,16 +33,7 @@
 			isa = PBXGroup;
 			children = (
 				62662B0E2F672493004D2E59 /* VigiliAR */,
-				62662B0D2F672493004D2E59 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		62662B0D2F672493004D2E59 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				62662B0C2F672493004D2E59 /* VigiliAR.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -95,7 +86,7 @@
 			mainGroup = 62662B032F672493004D2E59;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 62662B0D2F672493004D2E59 /* Products */;
+			productRefGroup = 62662B032F672493004D2E59;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -254,7 +245,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = F6V6TV9H2H;
+				DEVELOPMENT_TEAM = ZV292UWHAW;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -275,7 +266,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alessandrosoccol2.VigiliAR;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alessandrococco.vigiliar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -295,7 +286,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = F6V6TV9H2H;
+				DEVELOPMENT_TEAM = ZV292UWHAW;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -316,7 +307,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alessandrosoccol2.VigiliAR;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alessandrococco.vigiliar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

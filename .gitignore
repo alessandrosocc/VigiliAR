@@ -1,2 +1,178 @@
+# ============================================================
+# macOS
+# ============================================================
 .DS_Store
-.venv
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Thumbnails / metadata
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# ============================================================
+# Xcode / Swift / Apple platforms
+# ============================================================
+
+# Build folders
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcarchive
+*.xcresult
+
+# Xcode user-specific files
+xcuserdata/
+*.xcuserstate
+
+# Per-user workspace settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Xcode workspace user data
+*.xcworkspace/xcuserdata/
+
+# Keep shared workspace data tracked
+!frontend/VigiliAR.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+
+# Ignore Package.resolved only if you do NOT want to pin dependencies.
+# For app projects, many teams prefer tracking it.
+# Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Generated playground files
+timeline.xctimeline
+playground.xcworkspace
+
+# XCTest / result bundles
+TestResults/
+Logs/Test/
+
+# ============================================================
+# Swift / misc IDE files
+# ============================================================
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / build
+.Python
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+hypothesis/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Env files / secrets
+.env
+.env.*
+*.env
+
+# ============================================================
+# Backend runtime / local generated files
+# ============================================================
+
+# Local test/generated images
+*.jpeg
+*.jpg
+*.png
+
+# Keep frontend asset catalog images tracked
+!frontend/VigiliAR/Assets/**
+!frontend/VigiliAR/Assets
+
+# SQLite / local db files if added later
+*.sqlite
+*.sqlite3
+*.db
+
+# Local YAML runtime data (uncomment only if they must remain local)
+# backend/cars.yaml
+# backend/users.yaml
+# backend/prese_servizio.yaml
+
+# ============================================================
+# Editor / tooling
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# GitHub / CI artifacts
+# ============================================================
+coverage.xml
+pytestdebug.log

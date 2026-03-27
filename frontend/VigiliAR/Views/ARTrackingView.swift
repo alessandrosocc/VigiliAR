@@ -3,10 +3,12 @@ import RealityKit
 import ARKit
 
 struct ARTrackingView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var vehicleStore: VehicleStore
     @EnvironmentObject private var sceneStore: ARTrackingSceneStore
     @EnvironmentObject private var userProfileStore: UserProfileStore
-    @State private var lastSnapshotFilename: String = "None"
+
+    @State private var lastSnapshotFilename: String = "Nessuno"
     @State private var lastSnapshotPath: String = ""
     @State private var shareURL: URL?
     @State private var isShowingShareSheet: Bool = false
@@ -24,68 +26,29 @@ struct ARTrackingView: View {
                 sceneStore: sceneStore,
                 userProfileStore: userProfileStore
             )
-                .ignoresSafeArea()
+            .ignoresSafeArea()
 
-            VStack(spacing: 14) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Rilevazione AR")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                        Text("Operatore: \(userProfileStore.greetingName)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        deleteRequestCounter += 1
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.headline)
-                            .padding(10)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-
-                    Spacer()
-
-                    Button {
-                        guard !lastSnapshotPath.isEmpty else { return }
-                        shareURL = URL(fileURLWithPath: lastSnapshotPath)
-                        isShowingShareSheet = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.headline)
-                            .padding(10)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                    .disabled(lastSnapshotPath.isEmpty)
+            ARHUDOverlay(
+                operatorName: userProfileStore.greetingName,
+                hasTappedForDetection: hasTappedForDetection,
+                hasActiveOverlays: !sceneStore.overlays.isEmpty,
+                snapshotFilename: lastSnapshotFilename,
+                hasSnapshot: !lastSnapshotPath.isEmpty,
+                onBack: {
+                    dismiss()
+                },
+                onDeleteLast: {
+                    deleteRequestCounter += 1
+                },
+                onShareLast: {
+                    guard !lastSnapshotPath.isEmpty else { return }
+                    shareURL = URL(fileURLWithPath: lastSnapshotPath)
+                    isShowingShareSheet = true
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-
-                if !hasTappedForDetection {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Tocca lo schermo per creare il pannello sul veicolo rilevato.")
-                            .font(.footnote.weight(.semibold))
-                        Text(lastSnapshotPath.isEmpty ? "Nessuno snapshot condivisibile" : "Ultimo snapshot: \(lastSnapshotFilename)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .padding(.horizontal, 12)
-                }
-
-                Spacer()
-            }
+            )
         }
-        .navigationTitle("Rilevazione Auto")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isShowingShareSheet) {
             if let shareURL {
                 ShareSheet(items: [shareURL])
@@ -93,6 +56,299 @@ struct ARTrackingView: View {
         }
     }
 }
+
+
+
+
+
+private struct ARHUDOverlay: View {
+    let operatorName: String
+    let hasTappedForDetection: Bool
+    let hasActiveOverlays: Bool
+    let snapshotFilename: String
+    let hasSnapshot: Bool
+    let onBack: () -> Void
+    let onDeleteLast: () -> Void
+    let onShareLast: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            topBar
+            sceneCard
+            Spacer(minLength: 0)
+            bottomCard
+        }
+        .safeAreaPadding(.bottom, 14)
+        .padding(.horizontal, 12)
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button(action: onBack) {
+                ARFloatingIconButton(
+                    systemImage: "chevron.left",
+                    isDestructive: false
+                )
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Rilevazione AR")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .lineLimit(1)
+
+                Text(operatorName)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button(action: onDeleteLast) {
+                    ARFloatingIconButton(
+                        systemImage: "trash",
+                        isDestructive: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasActiveOverlays)
+                .opacity(hasActiveOverlays ? 1 : 0.55)
+
+                Button(action: onShareLast) {
+                    ARFloatingIconButton(
+                        systemImage: "square.and.arrow.up",
+                        isDestructive: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasSnapshot)
+                .opacity(hasSnapshot ? 1 : 0.55)
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    private var sceneCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
+                sceneIcon
+                    .fixedSize()
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Scena attiva")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+
+                    Text(primaryHintText)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .layoutPriority(1)
+
+                Spacer(minLength: 0)
+            }
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    controlPill(systemImage: "hand.tap.fill", text: "Rileva")
+                    controlPill(systemImage: "arrow.up.left.and.arrow.down.right", text: "Scala")
+                    controlPill(systemImage: "hand.draw.fill", text: "Sposta")
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        controlPill(systemImage: "hand.tap.fill", text: "Rileva")
+                        controlPill(systemImage: "arrow.up.left.and.arrow.down.right", text: "Scala")
+                    }
+
+                    controlPill(systemImage: "hand.draw.fill", text: "Sposta")
+                }
+            }
+
+            if hasSnapshot {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.green)
+
+                    Text(snapshotFilename)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white.opacity(0.06))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(hudCardBackground)
+        .overlay(hudCardStroke)
+        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var bottomCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("CONTROLLI RAPIDI")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+
+            Text(bottomHintText)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(AppTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(hudCardBackground)
+        .overlay(hudCardStroke)
+        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var sceneIcon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            AppTheme.primary.opacity(0.24),
+                            Color.cyan.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 46, height: 46)
+
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                .frame(width: 46, height: 46)
+
+            Image(systemName: "camera.viewfinder")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(AppTheme.primary)
+        }
+    }
+
+    private func controlPill(systemImage: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(AppTheme.primary)
+
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color.white.opacity(0.08))
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .fixedSize()
+    }
+
+    private var primaryHintText: String {
+        if hasTappedForDetection {
+            return "Tocca di nuovo per aggiornare la rilevazione o interagire con il pannello."
+        }
+        return "Tocca il veicolo per creare il pannello informativo."
+    }
+
+    private var bottomHintText: String {
+        if hasActiveOverlays {
+            return "Puoi eliminare l’ultimo pannello, condividere l’ultimo snapshot o spostare il pannello con due dita."
+        }
+        return "Non ci sono pannelli attivi. Usa il tocco sulla scena per avviare una nuova rilevazione."
+    }
+
+    private var hudCardBackground: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.black.opacity(0.26))
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.12),
+                            Color.white.opacity(0.04)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+    }
+
+    private var hudCardStroke: some View {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+    }
+}
+
+private struct ARFloatingIconButton: View {
+    let systemImage: String
+    let isDestructive: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.32))
+                .frame(width: 44, height: 44)
+
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.10),
+                            Color.white.opacity(0.03)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 44, height: 44)
+
+            Circle()
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(isDestructive ? Color.red.opacity(0.95) : Color.white)
+        }
+        .frame(width: 44, height: 44)
+        .shadow(color: .black.opacity(0.16), radius: 6, x: 0, y: 3)
+    }
+}
+
+
+
+
+
 
 private struct ARViewContainer: UIViewRepresentable {
     @Binding var lastSnapshotFilename: String
@@ -119,13 +375,14 @@ private struct ARViewContainer: UIViewRepresentable {
         }
         context.coordinator.ensureSnapshotsDirectoryExists()
 
-        // Rebind recognizers to the current coordinator to avoid stale targets.
+        // Rimuove eventuali recognizer vecchi per evitare target duplicati.
         if let recognizers = arView.gestureRecognizers {
             for recognizer in recognizers {
                 if recognizer is UITapGestureRecognizer || recognizer is UIPinchGestureRecognizer {
                     arView.removeGestureRecognizer(recognizer)
                     continue
                 }
+
                 if let pan = recognizer as? UIPanGestureRecognizer,
                    pan.minimumNumberOfTouches == 2,
                    pan.maximumNumberOfTouches == 2 {
@@ -134,19 +391,29 @@ private struct ARViewContainer: UIViewRepresentable {
             }
         }
 
-        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        let tap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTap(_:))
+        )
         arView.addGestureRecognizer(tap)
         sceneStore.isTapGestureInstalled = true
 
-        let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
+        let pinch = UIPinchGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePinch(_:))
+        )
         arView.addGestureRecognizer(pinch)
         sceneStore.isPinchGestureInstalled = true
 
-        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTwoFingerPan(_:)))
+        let pan = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTwoFingerPan(_:))
+        )
         pan.minimumNumberOfTouches = 2
         pan.maximumNumberOfTouches = 2
         arView.addGestureRecognizer(pan)
         sceneStore.isTwoFingerPanGestureInstalled = true
+
         return arView
     }
 
@@ -193,23 +460,28 @@ private struct ARViewContainer: UIViewRepresentable {
         weak var vehicleStore: VehicleStore?
         weak var sceneStore: ARTrackingSceneStore?
         weak var userProfileStore: UserProfileStore?
+
         var lastHandledDeleteRequest: Int = 0
-        private let apiBaseURL = "http://192.168.1.81:8000"
+
+        private let apiBaseURL = "http://192.168.1.33:8000"
+        private let snapshotsFolderName = "VigiliAR Snapshots"
+        private let minPanelScale: Float = 0.65
+        private let maxPanelScale: Float = 2.2
+
         private var multaButtonPlates: [String: String] = [:]
         private weak var activePinchPanel: Entity?
         private var activePinchStartScale: SIMD3<Float> = SIMD3<Float>(repeating: 1)
-        private let minPanelScale: Float = 0.65
-        private let maxPanelScale: Float = 2.2
         private weak var activePanPanel: Entity?
         private var activePanPlanePoint: SIMD3<Float> = .zero
         private var activePanPlaneNormal: SIMD3<Float> = SIMD3<Float>(0, 0, 1)
         private var activePanPanelOffset: SIMD3<Float> = .zero
-        private let snapshotsFolderName = "VigiliAR Snapshots"
 
         func configureSession() {
             guard let arView else { return }
+
             let configuration = ARWorldTrackingConfiguration()
             configuration.planeDetection = [.horizontal, .vertical]
+
             arView.automaticallyConfigureSession = false
             arView.renderOptions.insert(.disableMotionBlur)
             arView.session.run(configuration)
@@ -221,16 +493,16 @@ private struct ARViewContainer: UIViewRepresentable {
 
             switch recognizer.state {
             case .began:
-                guard let panel = panelForPinchStart(recognizer, in: arView) else {
-                    return
-                }
+                guard let panel = panelForPinchStart(recognizer, in: arView) else { return }
                 activePinchPanel = panel
                 activePinchStartScale = panel.scale
+
             case .changed:
                 guard let panel = activePinchPanel else { return }
                 let rawScale = Float(recognizer.scale)
                 let clamped = min(max(rawScale, minPanelScale), maxPanelScale)
                 panel.scale = activePinchStartScale * clamped
+
             default:
                 activePinchPanel = nil
                 activePinchStartScale = SIMD3<Float>(repeating: 1)
@@ -244,6 +516,7 @@ private struct ARViewContainer: UIViewRepresentable {
             switch recognizer.state {
             case .began:
                 guard let panel = panelForPanStart(recognizer, in: arView) else { return }
+
                 activePanPanel = panel
                 let panelPosition = panel.position(relativeTo: nil)
                 activePanPlanePoint = panelPosition
@@ -260,9 +533,11 @@ private struct ARViewContainer: UIViewRepresentable {
                 } else {
                     activePanPanelOffset = .zero
                 }
+
             case .changed:
                 guard let panel = activePanPanel else { return }
                 let midpoint = recognizer.location(in: arView)
+
                 guard let hit = rayPlaneIntersection(
                     screenPoint: midpoint,
                     in: arView,
@@ -271,7 +546,9 @@ private struct ARViewContainer: UIViewRepresentable {
                 ) else {
                     return
                 }
+
                 panel.setPosition(hit + activePanPanelOffset, relativeTo: nil)
+
             default:
                 activePanPanel = nil
                 activePanPlanePoint = .zero
@@ -280,65 +557,10 @@ private struct ARViewContainer: UIViewRepresentable {
             }
         }
 
-        private func cameraForward(in arView: ARView) -> SIMD3<Float>? {
-            guard let transform = arView.session.currentFrame?.camera.transform else { return nil }
-            let forward = SIMD3<Float>(
-                -transform.columns.2.x,
-                -transform.columns.2.y,
-                -transform.columns.2.z
-            )
-            let len = simd_length(forward)
-            guard len > 0.0001 else { return nil }
-            return forward / len
-        }
-
-        private func rayPlaneIntersection(
-            screenPoint: CGPoint,
-            in arView: ARView,
-            planePoint: SIMD3<Float>,
-            planeNormal: SIMD3<Float>
-        ) -> SIMD3<Float>? {
-            guard let ray = arView.ray(through: screenPoint) else { return nil }
-            let denom = simd_dot(ray.direction, planeNormal)
-            guard abs(denom) > 0.0001 else { return nil }
-            let t = simd_dot(planePoint - ray.origin, planeNormal) / denom
-            guard t > 0 else { return nil }
-            return ray.origin + (ray.direction * t)
-        }
-
-        private func panelForPinchStart(_ recognizer: UIPinchGestureRecognizer, in arView: ARView) -> Entity? {
-            let midpoint = recognizer.location(in: arView)
-            let firstTouch = recognizer.location(ofTouch: 0, in: arView)
-            let secondTouch = recognizer.location(ofTouch: 1, in: arView)
-            let candidates = [firstTouch, secondTouch, midpoint]
-
-            for point in candidates {
-                if let touched = arView.entity(at: point),
-                   let panel = panelAncestor(from: touched) {
-                    return panel
-                }
-            }
-            return nil
-        }
-
-        private func panelForPanStart(_ recognizer: UIPanGestureRecognizer, in arView: ARView) -> Entity? {
-            let midpoint = recognizer.location(in: arView)
-            let firstTouch = recognizer.location(ofTouch: 0, in: arView)
-            let secondTouch = recognizer.location(ofTouch: 1, in: arView)
-            let candidates = [firstTouch, secondTouch, midpoint]
-
-            for point in candidates {
-                if let touched = arView.entity(at: point),
-                   let panel = panelAncestor(from: touched) {
-                    return panel
-                }
-            }
-            return nil
-        }
-
         @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
             guard let arView else { return }
             let location = recognizer.location(in: arView)
+
             DispatchQueue.main.async {
                 self.hasTappedForDetection?.wrappedValue = true
             }
@@ -355,6 +577,7 @@ private struct ARViewContainer: UIViewRepresentable {
 
             saveSnapshot(from: arView) { [weak self] image in
                 guard let self else { return }
+
                 self.sendSnapshotToDetectEndpoint(image: image) { data, _ in
                     DispatchQueue.main.async {
                         guard let data,
@@ -369,61 +592,143 @@ private struct ARViewContainer: UIViewRepresentable {
                         }
 
                         self.updateLastSeen(for: parsed.plate)
+
                         let display = self.makePanelDisplay(from: data, scan: parsed)
                         let anchor = AnchorEntity(world: position)
                         let panel = self.makeInfoPanel(display: display, plate: parsed.plate)
+
                         panel.position = [0, 0.06, 0]
                         self.orientPanelTowardCamera(panel, anchorPosition: position)
+
                         anchor.addChild(panel)
                         arView.scene.addAnchor(anchor)
 
                         self.vehicleStore?.add(parsed)
-                        self.sceneStore?.overlays.append(
-                            ARGeneratedOverlay(id: UUID(), anchor: anchor, vehicleScanID: parsed.id)
+                        self.sceneStore?.appendOverlay(
+                            ARGeneratedOverlay(
+                                id: UUID(),
+                                anchor: anchor,
+                                vehicleScanID: parsed.id
+                            )
                         )
                     }
                 }
             }
         }
 
+        func deleteLastGeneratedRectangle() {
+            guard let lastOverlay = sceneStore?.removeLastOverlay() else { return }
+
+            lastOverlay.anchor.removeFromParent()
+
+            if let scanID = lastOverlay.vehicleScanID {
+                vehicleStore?.remove(scanID: scanID)
+            }
+        }
+
         private func placementPosition(for location: CGPoint, in arView: ARView) -> SIMD3<Float> {
             if let result = arView.raycast(from: location, allowing: .estimatedPlane, alignment: .any).first {
                 let transform = result.worldTransform
-                return SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+                return SIMD3<Float>(
+                    transform.columns.3.x,
+                    transform.columns.3.y,
+                    transform.columns.3.z
+                )
             }
 
             guard let cameraTransform = arView.session.currentFrame?.camera.transform else {
                 return SIMD3<Float>(0, 0, -0.6)
             }
+
             let cameraPosition = SIMD3<Float>(
                 cameraTransform.columns.3.x,
                 cameraTransform.columns.3.y,
                 cameraTransform.columns.3.z
             )
             let forward = cameraForward(in: arView) ?? SIMD3<Float>(0, 0, -1)
+
             return cameraPosition + (forward * 0.7)
         }
 
-        func deleteLastGeneratedRectangle() {
-            guard let lastOverlay = sceneStore?.overlays.popLast() else { return }
-            lastOverlay.anchor.removeFromParent()
-            if let scanID = lastOverlay.vehicleScanID {
-                vehicleStore?.remove(scanID: scanID)
+        private func cameraForward(in arView: ARView) -> SIMD3<Float>? {
+            guard let transform = arView.session.currentFrame?.camera.transform else { return nil }
+
+            let forward = SIMD3<Float>(
+                -transform.columns.2.x,
+                -transform.columns.2.y,
+                -transform.columns.2.z
+            )
+
+            let len = simd_length(forward)
+            guard len > 0.0001 else { return nil }
+
+            return forward / len
+        }
+
+        private func rayPlaneIntersection(
+            screenPoint: CGPoint,
+            in arView: ARView,
+            planePoint: SIMD3<Float>,
+            planeNormal: SIMD3<Float>
+        ) -> SIMD3<Float>? {
+            guard let ray = arView.ray(through: screenPoint) else { return nil }
+
+            let denom = simd_dot(ray.direction, planeNormal)
+            guard abs(denom) > 0.0001 else { return nil }
+
+            let t = simd_dot(planePoint - ray.origin, planeNormal) / denom
+            guard t > 0 else { return nil }
+
+            return ray.origin + (ray.direction * t)
+        }
+
+        private func panelForPinchStart(_ recognizer: UIPinchGestureRecognizer, in arView: ARView) -> Entity? {
+            let midpoint = recognizer.location(in: arView)
+            let firstTouch = recognizer.location(ofTouch: 0, in: arView)
+            let secondTouch = recognizer.location(ofTouch: 1, in: arView)
+            let candidates = [firstTouch, secondTouch, midpoint]
+
+            for point in candidates {
+                if let touched = arView.entity(at: point),
+                   let panel = panelAncestor(from: touched) {
+                    return panel
+                }
             }
+
+            return nil
+        }
+
+        private func panelForPanStart(_ recognizer: UIPanGestureRecognizer, in arView: ARView) -> Entity? {
+            let midpoint = recognizer.location(in: arView)
+            let firstTouch = recognizer.location(ofTouch: 0, in: arView)
+            let secondTouch = recognizer.location(ofTouch: 1, in: arView)
+            let candidates = [firstTouch, secondTouch, midpoint]
+
+            for point in candidates {
+                if let touched = arView.entity(at: point),
+                   let panel = panelAncestor(from: touched) {
+                    return panel
+                }
+            }
+
+            return nil
         }
 
         private func makeInfoPanel(display: PanelDisplay, plate: String) -> Entity {
             let root = Entity()
             root.name = "vehicle_panel_root_\(UUID().uuidString)"
+
             let metrics = panelMetrics(showMultaButton: display.showMultaButton)
 
             let panelMesh = MeshResource.generateBox(
                 size: [metrics.width, metrics.height, 0.002],
                 cornerRadius: min(metrics.width, metrics.height) * 0.42
             )
+
             let panelColor = display.isParkExpired
                 ? UIColor(red: 0.60, green: 0.12, blue: 0.12, alpha: 0.98)
                 : UIColor(red: 0.10, green: 0.52, blue: 0.22, alpha: 0.98)
+
             let panelMaterial = SimpleMaterial(color: panelColor, isMetallic: false)
             let panel = ModelEntity(mesh: panelMesh, materials: [panelMaterial])
             panel.name = "panel_surface"
@@ -435,9 +740,12 @@ private struct ARViewContainer: UIViewRepresentable {
             root.addChild(textContainer)
 
             setPanelContent(root, display: display, metrics: metrics)
-            if display.showMultaButton, let multaButton = makeMultaButton(metrics: metrics, plate: plate) {
+
+            if display.showMultaButton,
+               let multaButton = makeMultaButton(metrics: metrics, plate: plate) {
                 root.addChild(multaButton)
             }
+
             return root
         }
 
@@ -454,14 +762,17 @@ private struct ARViewContainer: UIViewRepresentable {
 
             let buttonWidth = min(max(metrics.width * 0.45, 0.07), metrics.width - 0.03)
             let buttonHeight: Float = 0.018
+
             let buttonMesh = MeshResource.generateBox(
                 size: [buttonWidth, buttonHeight, 0.003],
                 cornerRadius: 0.004
             )
+
             let buttonMaterial = SimpleMaterial(
                 color: UIColor(red: 0.86, green: 0.12, blue: 0.13, alpha: 0.96),
                 isMetallic: false
             )
+
             let buttonEntity = ModelEntity(mesh: buttonMesh, materials: [buttonMaterial])
             buttonEntity.name = "multa_button_surface"
             buttonEntity.generateCollisionShapes(recursive: false)
@@ -475,19 +786,23 @@ private struct ARViewContainer: UIViewRepresentable {
                 alignment: .center,
                 lineBreakMode: .byClipping
             )
+
             let labelEntity = ModelEntity(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
             labelEntity.name = "multa_button_label"
+
             let labelScale: Float = 0.33
             labelEntity.scale = [labelScale, labelScale, labelScale]
+
             let labelBounds = labelMesh.bounds.extents
             labelEntity.position = [
                 -(labelBounds.x * labelScale) / 2,
                 -(labelBounds.y * labelScale) / 2,
                 0.002
             ]
-            buttonRoot.addChild(labelEntity)
 
+            buttonRoot.addChild(labelEntity)
             buttonRoot.position = [0, metrics.buttonY, 0.004]
+
             return buttonRoot
         }
 
@@ -503,12 +818,15 @@ private struct ARViewContainer: UIViewRepresentable {
                 alignment: .left,
                 lineBreakMode: .byClipping
             )
+
             let titleEntity = ModelEntity(
                 mesh: titleMesh,
                 materials: [UnlitMaterial(color: UIColor.white)]
             )
+
             let titleScale: Float = 0.40
             titleEntity.scale = [titleScale, titleScale, titleScale]
+
             let titleBounds = titleMesh.bounds.extents
             titleEntity.position = [-(titleBounds.x * titleScale) / 2, metrics.titleY, 0.002]
             textContainer.addChild(titleEntity)
@@ -527,9 +845,15 @@ private struct ARViewContainer: UIViewRepresentable {
                     alignment: isLeft ? .left : .right,
                     lineBreakMode: .byClipping
                 )
-                let fieldEntity = ModelEntity(mesh: fieldMesh, materials: [UnlitMaterial(color: field.color)])
+
+                let fieldEntity = ModelEntity(
+                    mesh: fieldMesh,
+                    materials: [UnlitMaterial(color: field.color)]
+                )
+
                 let fieldScale: Float = 0.35
                 fieldEntity.scale = [fieldScale, fieldScale, fieldScale]
+
                 if isLeft {
                     fieldEntity.position = [metrics.leftColumnX, y, 0.002]
                 } else {
@@ -537,6 +861,7 @@ private struct ARViewContainer: UIViewRepresentable {
                     let textWidth = bounds.x * fieldScale
                     fieldEntity.position = [metrics.rightColumnRightEdgeX - textWidth, y, 0.002]
                 }
+
                 textContainer.addChild(fieldEntity)
             }
         }
@@ -571,12 +896,15 @@ private struct ARViewContainer: UIViewRepresentable {
                 cameraTransform.columns.3.y,
                 cameraTransform.columns.3.z
             )
+
             let panelWorld = anchorPosition + panel.position
+
             let horizontalDirection = SIMD3<Float>(
                 cameraWorld.x - panelWorld.x,
                 0,
                 cameraWorld.z - panelWorld.z
             )
+
             let length = simd_length(horizontalDirection)
             guard length > 0.0001 else { return }
 
@@ -587,15 +915,27 @@ private struct ARViewContainer: UIViewRepresentable {
 
         private func snapshotsDirectoryURL() -> URL? {
             let fileManager = FileManager.default
-            guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+
+            guard let documentsDirectory = fileManager.urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+            ).first else {
                 return nil
             }
-            return documentsDirectory.appendingPathComponent(snapshotsFolderName, isDirectory: true)
+
+            return documentsDirectory.appendingPathComponent(
+                snapshotsFolderName,
+                isDirectory: true
+            )
         }
 
         func ensureSnapshotsDirectoryExists() {
             guard let snapshotsDirectory = snapshotsDirectoryURL() else { return }
-            try? FileManager.default.createDirectory(at: snapshotsDirectory, withIntermediateDirectories: true)
+
+            try? FileManager.default.createDirectory(
+                at: snapshotsDirectory,
+                withIntermediateDirectories: true
+            )
         }
 
         private func saveSnapshot(from arView: ARView, completion: @escaping (UIImage) -> Void) {
@@ -611,8 +951,10 @@ private struct ARViewContainer: UIViewRepresentable {
 
                 do {
                     try fileManager.createDirectory(at: snapshotsDirectory, withIntermediateDirectories: true)
+
                     let fileURL = snapshotsDirectory.appendingPathComponent(filename)
                     try pngData.write(to: fileURL, options: .atomic)
+
                     DispatchQueue.main.async {
                         self?.lastSnapshotFilename?.wrappedValue = filename
                         self?.lastSnapshotPath?.wrappedValue = fileURL.path
@@ -628,7 +970,10 @@ private struct ARViewContainer: UIViewRepresentable {
             }
         }
 
-        private func sendSnapshotToDetectEndpoint(image: UIImage, completion: @escaping (Data?, String) -> Void) {
+        private func sendSnapshotToDetectEndpoint(
+            image: UIImage,
+            completion: @escaping (Data?, String) -> Void
+        ) {
             guard let imageData = image.jpegData(compressionQuality: 0.9),
                   let url = URL(string: "\(apiBaseURL)/detect") else {
                 completion(nil, """
@@ -715,23 +1060,27 @@ private struct ARViewContainer: UIViewRepresentable {
 
         private func multaButtonAncestor(from entity: Entity) -> Entity? {
             var current: Entity? = entity
+
             while let node = current {
                 if multaButtonPlates[node.name] != nil {
                     return node
                 }
                 current = node.parent
             }
+
             return nil
         }
 
         private func panelAncestor(from entity: Entity) -> Entity? {
             var current: Entity? = entity
+
             while let node = current {
                 if node.name.hasPrefix("vehicle_panel_root_") {
                     return node
                 }
                 current = node.parent
             }
+
             return nil
         }
 
@@ -757,9 +1106,15 @@ private struct ARViewContainer: UIViewRepresentable {
                     alignment: .center,
                     lineBreakMode: .byClipping
                 )
-                labelEntity.model = ModelComponent(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
+
+                labelEntity.model = ModelComponent(
+                    mesh: labelMesh,
+                    materials: [UnlitMaterial(color: .white)]
+                )
+
                 let labelScale: Float = 0.31
                 labelEntity.scale = [labelScale, labelScale, labelScale]
+
                 let labelBounds = labelMesh.bounds.extents
                 labelEntity.position = [
                     -(labelBounds.x * labelScale) / 2,
@@ -783,11 +1138,13 @@ private struct ARViewContainer: UIViewRepresentable {
         private func updateLastSeen(for plate: String) {
             let cleanPlate = normalizePlate(plate)
             guard !cleanPlate.isEmpty, cleanPlate != "UNKNOWN" else { return }
+
             patchCar(plate: cleanPlate, payload: ["last_seen": iso8601NowUTCString()])
         }
 
         private func patchCar(plate: String, payload: [String: Any]) {
             let cleanPlate = normalizePlate(plate)
+
             guard !cleanPlate.isEmpty,
                   let encodedPlate = cleanPlate.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
                   let url = URL(string: "\(apiBaseURL)/cars/\(encodedPlate)"),
@@ -817,15 +1174,22 @@ private struct ARViewContainer: UIViewRepresentable {
 
             let plateKeys = ["plate", "license_plate", "plate_number", "number_plate", "licenseplate"]
             let plate = findPlate(in: flatMap, keys: plateKeys) ?? "Unknown"
-            let parkValue = findFirstValue(in: flatMap, matchingAny: [
-                "park_expiration", "parking_expiration", "parking_expiry", "park_expiry"
-            ]) ?? "-"
-            let insuranceValue = findFirstValue(in: flatMap, matchingAny: [
-                "insurance_expiration", "insurance_expiry"
-            ]) ?? "-"
-            let revisionValue = findFirstValue(in: flatMap, matchingAny: [
-                "last_revision", "revision_expiration", "revision_expiry"
-            ]) ?? "-"
+
+            let parkValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["park_expiration", "parking_expiration", "parking_expiry", "park_expiry"]
+            ) ?? "-"
+
+            let insuranceValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["insurance_expiration", "insurance_expiry"]
+            ) ?? "-"
+
+            let revisionValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["last_revision", "revision_expiration", "revision_expiry"]
+            ) ?? "-"
+
             let multaRaw = findFirstValue(in: flatMap, matchingAny: ["multa"])
             let multaState = multaRaw.flatMap(boolFromString)
 
@@ -833,7 +1197,7 @@ private struct ARViewContainer: UIViewRepresentable {
                 VehicleDetail(key: "Park Expiration", value: formatDisplayDate(parkValue)),
                 VehicleDetail(key: "Insurance Expiration", value: formatDisplayDate(insuranceValue)),
                 VehicleDetail(key: "Last Revision", value: formatDisplayDate(revisionValue)),
-                VehicleDetail(key: "Multa", value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO")),
+                VehicleDetail(key: "Multa", value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO"))
             ]
 
             return VehicleScan(
@@ -871,6 +1235,7 @@ private struct ARViewContainer: UIViewRepresentable {
             }
 
             let finalKey = prefix.isEmpty ? "value" : prefix
+
             if let value = any as? String {
                 output[finalKey] = value
             } else if let number = any as? NSNumber {
@@ -894,36 +1259,41 @@ private struct ARViewContainer: UIViewRepresentable {
             return nil
         }
 
-        private func prettifyKey(_ key: String) -> String {
-            let simple = key
-                .replacingOccurrences(of: "_", with: " ")
-                .replacingOccurrences(of: ".", with: " ")
-            return simple.prefix(1).uppercased() + simple.dropFirst()
-        }
-
         private func makePanelDisplay(from data: Data, scan: VehicleScan) -> PanelDisplay {
             let root = (try? JSONSerialization.jsonObject(with: data)) ?? [:]
             let flatMap = flattenJSON(root)
 
-            let parkValue = findFirstValue(in: flatMap, matchingAny: [
-                "park_expiration", "parking_expiration", "parking_expiry", "park_expiry"
-            ]) ?? "-"
-            let insuranceValue = findFirstValue(in: flatMap, matchingAny: [
-                "insurance_expiration", "insurance_expiry"
-            ]) ?? "-"
-            let revisionValue = findFirstValue(in: flatMap, matchingAny: [
-                "last_revision", "revision_expiration", "revision_expiry"
-            ]) ?? "-"
-            let modelValue = findFirstValue(in: flatMap, matchingAny: [
-                "model", "vehicle_model", "vehicle_type", "make"
-            ]) ?? (scan.details.first?.value ?? "-")
+            let parkValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["park_expiration", "parking_expiration", "parking_expiry", "park_expiry"]
+            ) ?? "-"
+
+            let insuranceValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["insurance_expiration", "insurance_expiry"]
+            ) ?? "-"
+
+            let revisionValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["last_revision", "revision_expiration", "revision_expiry"]
+            ) ?? "-"
+
+            let modelValue = findFirstValue(
+                in: flatMap,
+                matchingAny: ["model", "vehicle_model", "vehicle_type", "make"]
+            ) ?? (scan.details.first?.value ?? "-")
 
             let parkExpired = isExpiredDateString(parkValue)
             let insuranceExpired = isExpiredDateString(insuranceValue)
             let revisionExpired = isExpiredDateString(revisionValue)
             let multaRaw = findFirstValue(in: flatMap, matchingAny: ["multa"])
             let multaState = multaRaw.flatMap(boolFromString)
-            let hasAlert = (parkExpired == true) || (insuranceExpired == true) || (revisionExpired == true) || (multaState == true)
+
+            let hasAlert =
+                (parkExpired == true) ||
+                (insuranceExpired == true) ||
+                (revisionExpired == true) ||
+                (multaState == true)
 
             let textColor = UIColor(red: 0.96, green: 0.98, blue: 0.97, alpha: 1.0)
 
@@ -951,7 +1321,7 @@ private struct ARViewContainer: UIViewRepresentable {
                     label: "Multa",
                     value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO"),
                     color: textColor
-                ),
+                )
             ]
 
             return PanelDisplay(
@@ -966,15 +1336,19 @@ private struct ARViewContainer: UIViewRepresentable {
             guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 return false
             }
+
             if let found = root["car_found"] as? Bool {
                 return found
             }
+
             if let foundString = root["car_found"] as? String {
                 return foundString.lowercased() == "true"
             }
+
             if let foundNumber = root["car_found"] as? NSNumber {
                 return foundNumber.boolValue
             }
+
             return false
         }
 
@@ -1001,13 +1375,10 @@ private struct ARViewContainer: UIViewRepresentable {
         private func parseFlexibleDate(_ raw: String) -> Date? {
             let iso = ISO8601DateFormatter()
             iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let isoDate = iso.date(from: raw) {
-                return isoDate
-            }
+            if let isoDate = iso.date(from: raw) { return isoDate }
+
             iso.formatOptions = [.withInternetDateTime]
-            if let isoDate = iso.date(from: raw) {
-                return isoDate
-            }
+            if let isoDate = iso.date(from: raw) { return isoDate }
 
             let formats = [
                 "yyyy-MM-dd",
@@ -1016,7 +1387,7 @@ private struct ARViewContainer: UIViewRepresentable {
                 "dd-MM-yyyy",
                 "yyyy-MM-dd HH:mm:ss",
                 "yyyy/MM/dd HH:mm:ss",
-                "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd'T'HH:mm:ss"
             ]
 
             let formatter = DateFormatter()
@@ -1035,14 +1406,20 @@ private struct ARViewContainer: UIViewRepresentable {
 
         private func formatDisplayDate(_ raw: String) -> String {
             let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !value.isEmpty, value != "-", let date = parseFlexibleDate(value) else {
+
+            guard !value.isEmpty,
+                  value != "-",
+                  let date = parseFlexibleDate(value) else {
                 return value.isEmpty ? "-" : value
             }
 
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "it_IT")
             formatter.timeZone = TimeZone.current
-            formatter.dateFormat = value.contains("T") || value.contains(":") ? "dd/MM/yyyy HH:mm" : "dd/MM/yyyy"
+            formatter.dateFormat = value.contains("T") || value.contains(":")
+                ? "dd/MM/yyyy HH:mm"
+                : "dd/MM/yyyy"
+
             return formatter.string(from: date)
         }
 
@@ -1065,10 +1442,14 @@ private struct ARViewContainer: UIViewRepresentable {
         private func prettyJSONString(from data: Data) -> String? {
             guard let object = try? JSONSerialization.jsonObject(with: data),
                   JSONSerialization.isValidJSONObject(object),
-                  let prettyData = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+                  let prettyData = try? JSONSerialization.data(
+                    withJSONObject: object,
+                    options: [.prettyPrinted, .sortedKeys]
+                  ),
                   let prettyString = String(data: prettyData, encoding: .utf8) else {
                 return nil
             }
+
             return prettyString
         }
     }
@@ -1084,11 +1465,33 @@ private struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-#Preview {
-    NavigationStack {
-        ARTrackingView()
-            .environmentObject(VehicleStore())
-            .environmentObject(ARTrackingSceneStore())
-            .environmentObject(UserProfileStore())
+private struct ARTrackingChromePreview: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.black,
+                    Color(red: 0.10, green: 0.10, blue: 0.12)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ARHUDOverlay(
+                operatorName: "Alessandro Soccol",
+                hasTappedForDetection: true,
+                hasActiveOverlays: false,
+                snapshotFilename: "snapshot-20260327-230310-855.png",
+                hasSnapshot: true,
+                onBack: {},
+                onDeleteLast: {},
+                onShareLast: {}
+            )
+        }
     }
+}
+
+#Preview("AR Tracking Chrome") {
+    ARTrackingChromePreview()
 }

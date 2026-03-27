@@ -23,7 +23,7 @@ final class UserProfileStore: NSObject, ObservableObject {
     @Published private(set) var serviceStatusMessage: String = ""
     @Published private(set) var serviceTrackPoints: [ServiceTrackPoint] = []
 
-    private let apiBaseURL = "http://192.168.1.81:8000"
+    private let apiBaseURL = "http://192.168.1.33:8000"
     private let locationManager = CLLocationManager()
     private let geocoder = CLGeocoder()
     private var hasSubmittedServiceCheckIn: Bool = false
@@ -49,7 +49,7 @@ final class UserProfileStore: NSObject, ObservableObject {
         if first.isEmpty && last.isEmpty { return "there" }
         if last.isEmpty { return first }
         if first.isEmpty { return last }
-        return "\(first), \(last)"
+        return "\(first) \(last)"
     }
 
     var fullName: String {
@@ -74,6 +74,30 @@ final class UserProfileStore: NSObject, ObservableObject {
                 .hour(.twoDigits(amPM: .omitted))
                 .minute(.twoDigits)
         )
+    }
+    
+    /// Durata del servizio in secondi, se la presa servizio è stata registrata.
+    var serviceDuration: TimeInterval? {
+        guard let serviceStartedAt else { return nil }
+        return max(0, Date().timeIntervalSince(serviceStartedAt))
+    }
+
+    /// Testo pronto per la UI, ad esempio:
+    /// "12 min di servizio" oppure "1 h 08 min di servizio"
+    var formattedServiceDuration: String {
+        guard let duration = serviceDuration else {
+            return "Servizio non avviato"
+        }
+
+        let totalMinutes = Int(duration) / 60
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+
+        if hours > 0 {
+            return "\(hours) h \(minutes) min di servizio"
+        } else {
+            return "\(minutes) min di servizio"
+        }
     }
 
     func login() {
@@ -431,3 +455,161 @@ extension UserProfileStore: CLLocationManagerDelegate {
         submitServiceCheckInIfNeeded(location: nil, street: serviceStreet)
     }
 }
+
+#if DEBUG
+extension UserProfileStore {
+    /// Store minimale per preview della schermata di login.
+    /// Non autentica davvero e non attiva nessuna logica runtime.
+    static func previewLogin(
+        name: String = "",
+        surname: String = "",
+        identifier: String = "",
+        authStatusMessage: String = "",
+        isAuthenticating: Bool = false
+    ) -> UserProfileStore {
+        let store = UserProfileStore()
+
+        // Campi editabili della form
+        store.name = name
+        store.surname = surname
+        store.identifier = identifier
+
+        // Stato UI preview-only
+        store.isAuthenticated = false
+        store.isAuthenticating = isAuthenticating
+        store.authStatusMessage = authStatusMessage
+
+        return store
+    }
+
+    /// Store pronto per preview della dashboard.
+    /// Imposta uno stato operatore autenticato con servizio già avviato.
+    static func previewDashboard(
+        name: String = "Alessandro",
+        surname: String = "Soccol",
+        identifier: String = "alesoccol2001",
+        serviceStartedAt: Date? = Date().addingTimeInterval(-4200),
+        serviceStreet: String = "Via Nomentana, Roma",
+        currentStreet: String = "Viale Regina Margherita, Roma",
+        isResolvingServiceLocation: Bool = false,
+        serviceStatusMessage: String = ""
+    ) -> UserProfileStore {
+        let store = UserProfileStore()
+
+        // Dati operatore
+        store.name = name
+        store.surname = surname
+        store.identifier = identifier
+
+        // Stato autenticazione
+        store.isAuthenticated = true
+        store.isAuthenticating = false
+        store.authStatusMessage = ""
+
+        // Stato servizio
+        store.serviceStartedAt = serviceStartedAt
+        store.serviceStreet = serviceStreet
+        store.currentStreet = currentStreet
+        store.isResolvingServiceLocation = isResolvingServiceLocation
+        store.serviceStatusMessage = serviceStatusMessage
+
+        return store
+    }
+
+    /// Variante utile quando vuoi previeware la card mentre sta cercando la via.
+    static func previewDashboardResolvingLocation() -> UserProfileStore {
+        previewDashboard(
+            serviceStreet: "Via non disponibile",
+            currentStreet: "Coordinate 41.91025, 12.51631",
+            isResolvingServiceLocation: true,
+            serviceStatusMessage: "Rilevazione posizione in corso..."
+        )
+    }
+
+    /// Variante utile per testare stati degradati o messaggi di errore.
+    static func previewDashboardLocationDenied() -> UserProfileStore {
+        previewDashboard(
+            serviceStreet: "Posizione non autorizzata",
+            currentStreet: "Posizione non autorizzata",
+            isResolvingServiceLocation: false,
+            serviceStatusMessage: "Posizione non disponibile: autorizzazione negata."
+        )
+    }
+    
+    static func previewServiceTrack() -> UserProfileStore {
+        let store = UserProfileStore()
+
+        // Dati operatore base per coerenza con il resto dell'app
+        store.name = "Alessandro"
+        store.surname = "Soccol"
+        store.identifier = "alesoccol2001"
+
+        // Stato autenticato e servizio attivo
+        store.isAuthenticated = true
+        store.serviceStartedAt = Date().addingTimeInterval(-4200)
+        store.serviceStreet = "Piazza Yenne, Cagliari"
+        store.currentStreet = "Castello, Cagliari"
+        store.serviceStatusMessage = ""
+
+        // Tracciato demo per preview UI a Cagliari:
+        // partenza zona Piazza Yenne -> passaggio Palazzo delle Scienze -> salita verso Castello
+        store.serviceTrackPoints = [
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.21495, longitude: 9.11155),
+                timestamp: Date().addingTimeInterval(-2100)
+            ),
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.21610, longitude: 9.11110),
+                timestamp: Date().addingTimeInterval(-1800)
+            ),
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.21735, longitude: 9.11065),
+                timestamp: Date().addingTimeInterval(-1500)
+            ),
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.21855, longitude: 9.11010),
+                timestamp: Date().addingTimeInterval(-1200)
+            ),
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.21980, longitude: 9.10955),
+                timestamp: Date().addingTimeInterval(-900)
+            ),
+            // Passaggio in zona Palazzo delle Scienze
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.22110, longitude: 9.10900),
+                timestamp: Date().addingTimeInterval(-600)
+            ),
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.22210, longitude: 9.10855),
+                timestamp: Date().addingTimeInterval(-420)
+            ),
+            // Salita finale verso Castello / Bastione
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.22300, longitude: 9.10795),
+                timestamp: Date().addingTimeInterval(-240)
+            ),
+            ServiceTrackPoint(
+                coordinate: CLLocationCoordinate2D(latitude: 39.22385, longitude: 9.10730),
+                timestamp: Date().addingTimeInterval(-120)
+            )
+        ]
+
+        return store
+    }
+
+    static func previewServiceTrackEmpty() -> UserProfileStore {
+        let store = UserProfileStore()
+
+        store.name = "Alessandro"
+        store.surname = "Soccol"
+        store.identifier = "alesoccol2001"
+        store.isAuthenticated = true
+        store.serviceStartedAt = Date().addingTimeInterval(-1200)
+        store.serviceStreet = "Via Nomentana, Roma"
+        store.currentStreet = "Via Nomentana, Roma"
+        store.serviceStatusMessage = ""
+
+        return store
+    }
+}
+#endif
