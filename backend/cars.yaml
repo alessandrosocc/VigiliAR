@@ -2,12 +2,12 @@ cars:
 - plate: GA129KM
   last_revision: '2026-11-12'
   insurance_expiration: '2026-12-31'
-  last_seen: '2026-03-27T22:46:01.660Z'
-  park_expiration: '2027-03-15T12:00:00Z'
+  last_seen: '2026-03-30T18:42:23.546Z'
+  park_expiration: '2026-01-15T12:00:00Z'
   model: Nissan Micra
   color: Grigia
   year: 2006
-  multa: false
+  multa: true
 - plate: AA123AA
   last_revision: '2025-11-12'
   insurance_expiration: '2026-12-31'

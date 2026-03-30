@@ -461,3 +461,52 @@ prese_servizio:
   via: Via Germania, 12D - Quartu Sant'Elena
   latitude: 39.24207393770229
   longitude: 9.20399482931825
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T17:51:55.919Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207393770229
+  longitude: 9.20399482931825
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T18:06:47.152Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24208171922085
+  longitude: 9.204026721378781
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T18:14:40.667Z'
+  via: Via Germania, 12D - Quartu Sant'Elena
+  latitude: 39.24207393770229
+  longitude: 9.20399482931825
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T17:08:52.892Z'
+  via: Via Nomentana, Roma
+  latitude: 37.3347302
+  longitude: -122.0089189
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T18:28:50.772Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.242081783319705
+  longitude: 9.204026709331202
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T18:38:13.188Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24208163950384
+  longitude: 9.204026741635474
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T18:42:10.132Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.24208173936329
+  longitude: 9.204026697016095

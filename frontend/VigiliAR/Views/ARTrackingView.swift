@@ -168,31 +168,6 @@ private struct ARHUDOverlay: View {
                     controlPill(systemImage: "hand.draw.fill", text: "Sposta")
                 }
             }
-
-            if hasSnapshot {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.green)
-
-                    Text(snapshotFilename)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.06))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -429,9 +404,9 @@ private struct ARViewContainer: UIViewRepresentable {
 
     final class Coordinator: NSObject {
         private struct PanelField {
-            let icon: String
             let label: String
             let value: String
+            let statusText: String?
             let color: UIColor
         }
 
@@ -451,7 +426,10 @@ private struct ARViewContainer: UIViewRepresentable {
             let leftColumnX: Float
             let rightColumnRightEdgeX: Float
             let buttonY: Float
+            let accentY: Float
         }
+        
+        
 
         weak var arView: ARView?
         var lastSnapshotFilename: Binding<String>?
@@ -720,17 +698,28 @@ private struct ARViewContainer: UIViewRepresentable {
 
             let metrics = panelMetrics(showMultaButton: display.showMultaButton)
 
-            let panelMesh = MeshResource.generateBox(
-                size: [metrics.width, metrics.height, 0.002],
-                cornerRadius: min(metrics.width, metrics.height) * 0.42
+            // Base neutra, coerente con l'app, senza effetti dinamici
+            let panelColor = UIColor(
+                red: 0.08,
+                green: 0.10,
+                blue: 0.14,
+                alpha: 0.96
             )
 
-            let panelColor = display.isParkExpired
-                ? UIColor(red: 0.60, green: 0.12, blue: 0.12, alpha: 0.98)
-                : UIColor(red: 0.10, green: 0.52, blue: 0.22, alpha: 0.98)
+            let panelMesh = MeshResource.generateBox(
+                size: [metrics.width, metrics.height, 0.0025],
+                cornerRadius: 0.018
+            )
 
-            let panelMaterial = SimpleMaterial(color: panelColor, isMetallic: false)
-            let panel = ModelEntity(mesh: panelMesh, materials: [panelMaterial])
+            let panelMaterial = SimpleMaterial(
+                color: panelColor,
+                isMetallic: false
+            )
+
+            let panel = ModelEntity(
+                mesh: panelMesh,
+                materials: [panelMaterial]
+            )
             panel.name = "panel_surface"
             panel.generateCollisionShapes(recursive: false)
             root.addChild(panel)
@@ -760,16 +749,16 @@ private struct ARViewContainer: UIViewRepresentable {
             let buttonRoot = Entity()
             buttonRoot.name = buttonName
 
-            let buttonWidth = min(max(metrics.width * 0.45, 0.07), metrics.width - 0.03)
-            let buttonHeight: Float = 0.018
+            let buttonWidth: Float = 0.085
+            let buttonHeight: Float = 0.016
 
             let buttonMesh = MeshResource.generateBox(
-                size: [buttonWidth, buttonHeight, 0.003],
+                size: [buttonWidth, buttonHeight, 0.0022],
                 cornerRadius: 0.004
             )
 
             let buttonMaterial = SimpleMaterial(
-                color: UIColor(red: 0.86, green: 0.12, blue: 0.13, alpha: 0.96),
+                color: UIColor(red: 0.22, green: 0.30, blue: 0.48, alpha: 1.0),
                 isMetallic: false
             )
 
@@ -779,25 +768,28 @@ private struct ARViewContainer: UIViewRepresentable {
             buttonRoot.addChild(buttonEntity)
 
             let labelMesh = MeshResource.generateText(
-                "Multa",
-                extrusionDepth: 0.0005,
-                font: .systemFont(ofSize: 0.015, weight: .bold),
+                "MULTA",
+                extrusionDepth: 0.0003,
+                font: .systemFont(ofSize: 0.012, weight: .bold),
                 containerFrame: .zero,
                 alignment: .center,
                 lineBreakMode: .byClipping
             )
 
-            let labelEntity = ModelEntity(mesh: labelMesh, materials: [UnlitMaterial(color: .white)])
+            let labelEntity = ModelEntity(
+                mesh: labelMesh,
+                materials: [UnlitMaterial(color: .white)]
+            )
             labelEntity.name = "multa_button_label"
 
-            let labelScale: Float = 0.33
+            let labelScale: Float = 0.28
             labelEntity.scale = [labelScale, labelScale, labelScale]
 
             let labelBounds = labelMesh.bounds.extents
             labelEntity.position = [
                 -(labelBounds.x * labelScale) / 2,
                 -(labelBounds.y * labelScale) / 2,
-                0.002
+                0.0015
             ]
 
             buttonRoot.addChild(labelEntity)
@@ -810,6 +802,8 @@ private struct ARViewContainer: UIViewRepresentable {
             guard let textContainer = panel.findEntity(named: "textContainer") else { return }
             textContainer.children.forEach { $0.removeFromParent() }
 
+            let titleColor = UIColor.white
+
             let titleMesh = MeshResource.generateText(
                 display.title,
                 extrusionDepth: 0.0005,
@@ -821,26 +815,32 @@ private struct ARViewContainer: UIViewRepresentable {
 
             let titleEntity = ModelEntity(
                 mesh: titleMesh,
-                materials: [UnlitMaterial(color: UIColor.white)]
+                materials: [UnlitMaterial(color: titleColor)]
             )
 
             let titleScale: Float = 0.40
             titleEntity.scale = [titleScale, titleScale, titleScale]
 
             let titleBounds = titleMesh.bounds.extents
-            titleEntity.position = [-(titleBounds.x * titleScale) / 2, metrics.titleY, 0.002]
+            titleEntity.position = [-(titleBounds.x * titleScale) / 2, metrics.titleY, 0.003]
             textContainer.addChild(titleEntity)
 
             for (index, field) in display.fields.prefix(4).enumerated() {
                 let isLeft = index % 2 == 0
                 let isFirstRow = index < 2
                 let y = isFirstRow ? metrics.firstRowY : metrics.secondRowY
-                let text = "\(field.label): \(field.value)"
+
+                let composedText: String
+                if let statusText = field.statusText, !statusText.isEmpty {
+                    composedText = "\(field.label): \(field.value) • \(statusText)"
+                } else {
+                    composedText = "\(field.label): \(field.value)"
+                }
 
                 let fieldMesh = MeshResource.generateText(
-                    text,
+                    composedText,
                     extrusionDepth: 0.0005,
-                    font: .systemFont(ofSize: 0.022, weight: .bold),
+                    font: .systemFont(ofSize: 0.020, weight: .semibold),
                     containerFrame: .zero,
                     alignment: isLeft ? .left : .right,
                     lineBreakMode: .byClipping
@@ -851,30 +851,33 @@ private struct ARViewContainer: UIViewRepresentable {
                     materials: [UnlitMaterial(color: field.color)]
                 )
 
-                let fieldScale: Float = 0.35
+                let fieldScale: Float = 0.34
                 fieldEntity.scale = [fieldScale, fieldScale, fieldScale]
 
                 if isLeft {
-                    fieldEntity.position = [metrics.leftColumnX, y, 0.002]
+                    fieldEntity.position = [metrics.leftColumnX, y, 0.003]
                 } else {
                     let bounds = fieldMesh.bounds.extents
                     let textWidth = bounds.x * fieldScale
-                    fieldEntity.position = [metrics.rightColumnRightEdgeX - textWidth, y, 0.002]
+                    fieldEntity.position = [metrics.rightColumnRightEdgeX - textWidth, y, 0.003]
                 }
 
                 textContainer.addChild(fieldEntity)
             }
         }
+        
+        
 
         private func panelMetrics(showMultaButton: Bool) -> PanelMetrics {
-            let width: Float = 0.27
-            let height: Float = showMultaButton ? 0.145 : 0.115
+            let width: Float = 0.275
+            let height: Float = showMultaButton ? 0.138 : 0.112
             let titleY = (height / 2) - 0.018
-            let firstRowY = titleY - 0.030
-            let secondRowY = firstRowY - 0.024
+            let firstRowY = titleY - 0.032
+            let secondRowY = firstRowY - 0.022
             let leftColumnX = -(width / 2) + 0.014
             let rightColumnRightEdgeX = (width / 2) - 0.014
-            let buttonY = -(height / 2) + 0.016
+            let buttonY = -(height / 2) + 0.018
+            let accentY: Float = 0
 
             return PanelMetrics(
                 width: width,
@@ -884,7 +887,8 @@ private struct ARViewContainer: UIViewRepresentable {
                 secondRowY: secondRowY,
                 leftColumnX: leftColumnX,
                 rightColumnRightEdgeX: rightColumnRightEdgeX,
-                buttonY: buttonY
+                buttonY: buttonY,
+                accentY: accentY
             )
         }
 
@@ -1090,7 +1094,7 @@ private struct ARViewContainer: UIViewRepresentable {
             if let buttonSurface = buttonRoot.findEntity(named: "multa_button_surface") as? ModelEntity {
                 buttonSurface.model?.materials = [
                     SimpleMaterial(
-                        color: UIColor(red: 0.42, green: 0.42, blue: 0.44, alpha: 0.95),
+                        color: UIColor(red: 0.32, green: 0.34, blue: 0.38, alpha: 1.0),
                         isMetallic: false
                     )
                 ]
@@ -1099,9 +1103,9 @@ private struct ARViewContainer: UIViewRepresentable {
 
             if let labelEntity = buttonRoot.findEntity(named: "multa_button_label") as? ModelEntity {
                 let labelMesh = MeshResource.generateText(
-                    "Multata",
-                    extrusionDepth: 0.0005,
-                    font: .systemFont(ofSize: 0.014, weight: .bold),
+                    "MULTATA",
+                    extrusionDepth: 0.0003,
+                    font: .systemFont(ofSize: 0.011, weight: .bold),
                     containerFrame: .zero,
                     alignment: .center,
                     lineBreakMode: .byClipping
@@ -1112,14 +1116,14 @@ private struct ARViewContainer: UIViewRepresentable {
                     materials: [UnlitMaterial(color: .white)]
                 )
 
-                let labelScale: Float = 0.31
+                let labelScale: Float = 0.26
                 labelEntity.scale = [labelScale, labelScale, labelScale]
 
                 let labelBounds = labelMesh.bounds.extents
                 labelEntity.position = [
                     -(labelBounds.x * labelScale) / 2,
                     -(labelBounds.y * labelScale) / 2,
-                    0.002
+                    0.0015
                 ]
             }
         }
@@ -1281,48 +1285,52 @@ private struct ARViewContainer: UIViewRepresentable {
             let modelValue = findFirstValue(
                 in: flatMap,
                 matchingAny: ["model", "vehicle_model", "vehicle_type", "make"]
-            ) ?? (scan.details.first?.value ?? "-")
+            ) ?? "-"
 
             let parkExpired = isExpiredDateString(parkValue)
             let insuranceExpired = isExpiredDateString(insuranceValue)
             let revisionExpired = isExpiredDateString(revisionValue)
+
             let multaRaw = findFirstValue(in: flatMap, matchingAny: ["multa"])
             let multaState = multaRaw.flatMap(boolFromString)
+
+            let normalColor = UIColor(red: 0.88, green: 0.91, blue: 0.96, alpha: 1.0)
+            let warningColor = UIColor(red: 1.00, green: 0.78, blue: 0.56, alpha: 1.0)
+            let dangerColor = UIColor(red: 1.00, green: 0.55, blue: 0.58, alpha: 1.0)
+            let successColor = UIColor(red: 0.36, green: 0.92, blue: 0.55, alpha: 1.0)
+
+            let fields: [PanelField] = [
+                PanelField(
+                    label: "Parcheggio",
+                    value: trimValue(formatDisplayDate(parkValue), max: 18),
+                    statusText: parkExpired == nil ? nil : (parkExpired == true ? "SCADUTA" : "OK"),
+                    color: parkExpired == true ? warningColor : normalColor
+                ),
+                PanelField(
+                    label: "Assic.",
+                    value: trimValue(formatDisplayDate(insuranceValue), max: 18),
+                    statusText: insuranceExpired == nil ? nil : (insuranceExpired == true ? "SCADUTA" : "OK"),
+                    color: insuranceExpired == true ? warningColor : normalColor
+                ),
+                PanelField(
+                    label: "Revis.",
+                    value: trimValue(formatDisplayDate(revisionValue), max: 18),
+                    statusText: revisionExpired == nil ? nil : (revisionExpired == true ? "SCADUTA" : "OK"),
+                    color: revisionExpired == true ? warningColor : normalColor
+                ),
+                PanelField(
+                    label: "Multa",
+                    value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO"),
+                    statusText: nil,
+                    color: multaState == true ? dangerColor : (multaState == false ? successColor : normalColor)
+                )
+            ]
 
             let hasAlert =
                 (parkExpired == true) ||
                 (insuranceExpired == true) ||
                 (revisionExpired == true) ||
                 (multaState == true)
-
-            let textColor = UIColor(red: 0.96, green: 0.98, blue: 0.97, alpha: 1.0)
-
-            let fields: [PanelField] = [
-                PanelField(
-                    icon: "P",
-                    label: "Parcheggio",
-                    value: trimValue(formatDisplayDate(parkValue), max: 18),
-                    color: textColor
-                ),
-                PanelField(
-                    icon: "A",
-                    label: "Assic.",
-                    value: trimValue(formatDisplayDate(insuranceValue), max: 18),
-                    color: textColor
-                ),
-                PanelField(
-                    icon: "R",
-                    label: "Revis.",
-                    value: trimValue(formatDisplayDate(revisionValue), max: 18),
-                    color: textColor
-                ),
-                PanelField(
-                    icon: "!",
-                    label: "Multa",
-                    value: multaState == nil ? "-" : (multaState == true ? "SI" : "NO"),
-                    color: textColor
-                )
-            ]
 
             return PanelDisplay(
                 title: "\(trimValue(scan.plate, max: 10)) • \(trimValue(modelValue, max: 12))",
@@ -1331,6 +1339,8 @@ private struct ARViewContainer: UIViewRepresentable {
                 showMultaButton: (parkExpired == true) && (multaState == false)
             )
         }
+        
+        
 
         private func isCarFound(in data: Data) -> Bool {
             guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
