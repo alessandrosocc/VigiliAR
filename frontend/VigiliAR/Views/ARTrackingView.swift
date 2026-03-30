@@ -128,7 +128,11 @@ private struct ARHUDOverlay: View {
                 .opacity(hasSnapshot ? 1 : 0.55)
             }
         }
-        .padding(.top, 2)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(headerBackground)
+        .overlay(headerStroke)
+        .shadow(color: .black.opacity(0.20), radius: 12, x: 0, y: 6)
     }
 
     private var sceneCard: some View {
@@ -173,7 +177,7 @@ private struct ARHUDOverlay: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(hudCardBackground)
         .overlay(hudCardStroke)
-        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
+        .shadow(color: .black.opacity(0.20), radius: 12, x: 0, y: 6)
         .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -193,7 +197,7 @@ private struct ARHUDOverlay: View {
         .padding(.vertical, 12)
         .background(hudCardBackground)
         .overlay(hudCardStroke)
-        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
+        .shadow(color: .black.opacity(0.20), radius: 12, x: 0, y: 6)
         .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -237,11 +241,11 @@ private struct ARHUDOverlay: View {
         .padding(.vertical, 8)
         .background(
             Capsule()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.white.opacity(0.10))
         )
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
         )
         .fixedSize()
     }
@@ -260,17 +264,27 @@ private struct ARHUDOverlay: View {
         return "Non ci sono pannelli attivi. Usa il tocco sulla scena per avviare una nuova rilevazione."
     }
 
+    private var headerBackground: some View {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(Color.black.opacity(0.48))
+    }
+
+    private var headerStroke: some View {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+    }
+
     private var hudCardBackground: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color.black.opacity(0.26))
+                .fill(Color.black.opacity(0.44))
 
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.12),
-                            Color.white.opacity(0.04)
+                            Color.white.opacity(0.10),
+                            Color.white.opacity(0.03)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -292,7 +306,7 @@ private struct ARFloatingIconButton: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.black.opacity(0.32))
+                .fill(Color.black.opacity(0.52))
                 .frame(width: 44, height: 44)
 
             Circle()
@@ -316,7 +330,7 @@ private struct ARFloatingIconButton: View {
                 .foregroundStyle(isDestructive ? Color.red.opacity(0.95) : Color.white)
         }
         .frame(width: 44, height: 44)
-        .shadow(color: .black.opacity(0.16), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 3)
     }
 }
 
@@ -1303,7 +1317,7 @@ private struct ARViewContainer: UIViewRepresentable {
                 PanelField(
                     label: "Parcheggio",
                     value: trimValue(formatDisplayDate(parkValue), max: 18),
-                    statusText: parkExpired == nil ? nil : (parkExpired == true ? "SCADUTA" : "OK"),
+                    statusText: parkExpired == nil ? nil : (parkExpired == true ? "SCADUTO" : "OK"),
                     color: parkExpired == true ? warningColor : normalColor
                 ),
                 PanelField(

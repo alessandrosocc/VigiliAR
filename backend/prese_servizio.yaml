@@ -510,3 +510,10 @@ prese_servizio:
   via: Via Germania, 14A - Quartu Sant'Elena
   latitude: 39.24208173936329
   longitude: 9.204026697016095
+- Nome: Alessandro
+  Cognome: Soccol
+  matricola: alesoccol2001
+  data_ora_presa_servizio: '2026-03-30T18:48:41.586Z'
+  via: Via Germania, 14A - Quartu Sant'Elena
+  latitude: 39.242081650254676
+  longitude: 9.204026732921013
